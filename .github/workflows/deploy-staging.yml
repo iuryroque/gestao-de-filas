@@ -1,0 +1,39 @@
+name: Deploy Staging
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run migrations on staging DB
+        env:
+          DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+        run: |
+          if [ -f backend/migrations/0001_init.sql ]; then
+            echo "Applying SQL migrations..."
+            PGPASSWORD=$(echo ${{ secrets.STAGING_DATABASE_URL }} | sed -n 's#.*:\/\/.\+:\(.\+\)@.*#\1#p') || true
+          fi
+
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+
+      - name: Railway deploy
+        env:
+          RAILWAY_API_KEY: ${{ secrets.RAILWAY_API_KEY }}
+          RAILWAY_PROJECT_ID: ${{ secrets.RAILWAY_PROJECT_ID }}
+        run: |
+          railway login --apiKey "$RAILWAY_API_KEY"
+          railway up --projectId "$RAILWAY_PROJECT_ID" --environment staging

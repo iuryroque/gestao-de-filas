@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Totem - Emissão de Senha (Prototype)</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">Gestão de Filas — Totem (Protótipo)</div>
+    <button id="a11yBtn" class="small">Acessibilidade</button>
+  </header>
+
+  <main class="center">
+    <section id="start" class="card big">
+      <h1>Emitir Senha</h1>
+      <p>Toque para iniciar o fluxo de emissão de senha.</p>
+      <button id="startBtn" class="primary large">Emitir Senha</button>
+    </section>
+
+    <section id="categories" class="hidden">
+      <h2>Selecione o Serviço</h2>
+      <div class="grid">
+        <button class="cat">Cobrança</button>
+        <button class="cat">Documentos</button>
+        <button class="cat">Atendimento Geral</button>
+        <button class="cat">Suporte Técnico</button>
+      </div>
+      <button id="backFromCat" class="small">Voltar</button>
+    </section>
+
+    <section id="confirm" class="hidden card">
+      <h2>Confirmar Serviço</h2>
+      <p id="serviceSummary">Serviço: <strong id="svcName">—</strong></p>
+      <p>Estimativa: <strong id="est">~35 min</strong></p>
+      <div class="row">
+        <button id="confirmBtn" class="primary">Confirmar</button>
+        <button id="correctBtn" class="small">Corrigir</button>
+      </div>
+    </section>
+
+    <section id="ticket" class="hidden card receipt">
+      <h2>Senha Emitida</h2>
+      <div class="ticket">
+        <div class="code" id="ticketCode">00123</div>
+        <div class="meta">Serviço: <span id="ticketSvc">Cobrança</span></div>
+        <div class="meta">Posição: <span id="ticketPos">12</span></div>
+        <div class="meta">Estimativa: <span id="ticketEst">~35 min</span></div>
+      </div>
+      <div class="row">
+        <button id="followBtn" class="small">Quero acompanhar por celular</button>
+        <button id="doneBtn" class="primary">Concluir</button>
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    const API_BASE = 'http://localhost:3000';
+    const WS_URL = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.hostname + ':3000';
+    let ws;
+
+    function initWS(){
+      try{
+        ws = new WebSocket(WS_URL);
+        ws.onopen = ()=>console.log('WS connected');
+        ws.onmessage = ev => {
+          // currently we don't need live updates here, but keep for future
+          // const msg = JSON.parse(ev.data);
+        };
+        ws.onclose = ()=>console.log('WS closed');
+      }catch(e){console.warn('WS init failed', e)}
+    }
+    initWS();
+
+    const startBtn = document.getElementById('startBtn');
+    const categories = document.getElementById('categories');
+    const start = document.getElementById('start');
+    const backFromCat = document.getElementById('backFromCat');
+    const confirm = document.getElementById('confirm');
+    const svcName = document.getElementById('svcName');
+    const confirmBtn = document.getElementById('confirmBtn');
+    const correctBtn = document.getElementById('correctBtn');
+    const ticket = document.getElementById('ticket');
+    const ticketCode = document.getElementById('ticketCode');
+    const ticketSvc = document.getElementById('ticketSvc');
+    const ticketPos = document.getElementById('ticketPos');
+    const ticketEst = document.getElementById('ticketEst');
+    const doneBtn = document.getElementById('doneBtn');
+    let selected = null;
+
+    function show(el){ el.classList.remove('hidden'); }
+    function hide(el){ el.classList.add('hidden'); }
+
+    startBtn.onclick = () => { hide(start); show(categories); };
+    backFromCat.onclick = () => { hide(categories); show(start); };
+
+    document.querySelectorAll('.cat').forEach(b => {
+      b.onclick = () => {
+        selected = b.textContent.trim();
+        svcName.textContent = selected;
+        hide(categories);
+        show(confirm);
+      }
+    });
+
+    confirmBtn.onclick = async () => {
+      // call backend to create ticket
+      try{
+        const payload = { queueId: 'default', meta: { service: selected, source: 'totem' } };
+        const resp = await fetch(`${API_BASE}/tickets`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        if(!resp.ok) throw new Error('Falha ao emitir ticket');
+        const ticket = await resp.json();
+        const code = String(ticket.number || ticket.id).padStart(4, '0');
+        ticketCode.textContent = code;
+        ticketSvc.textContent = selected;
+        // fetch queue stats for a rough position/estimate
+        try{
+          const s = await fetch(`${API_BASE}/queues/default/stats`);
+          if(s.ok){ const stats = await s.json(); ticketPos.textContent = stats.waiting || 0; ticketEst.textContent = stats.tme_seconds? '~' + Math.round(stats.tme_seconds/60) + ' min' : '~N/A'; }
+        }catch(e){}
+        hide(confirm);
+        show(ticket);
+      }catch(e){
+        alert('Erro: ' + e.message);
+      }
+    }
+
+    correctBtn.onclick = () => { hide(confirm); show(categories); }
+    doneBtn.onclick = () => { hide(ticket); show(start); }
+
+  </script>
+</body>
+</html>

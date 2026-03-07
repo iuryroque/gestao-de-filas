@@ -1,0 +1,34 @@
+# Dependencies
+node_modules/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# SQLite dev databases
+backend/data/*.sqlite3
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Build
+dist/
+.next/
+out/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Generated
+generated/
+gestao-de-filas/generated/
+
+# Docker volumes
+db_data/
