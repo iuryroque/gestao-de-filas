@@ -1,6 +1,8 @@
 "use client"
 import React, { useCallback, useEffect, useRef, useState } from "react"
 import { api } from "~/trpc/react"
+import { useTheme } from "../_components/ThemeContext"
+import { ThemeToggle } from "../_components/ThemeToggle"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -57,7 +59,7 @@ export default function TotemPage() {
   const [selectedService, setSelectedService] = useState<Service | null>(null)
   const [priorityId, setPriorityId]         = useState<string | null>(null)
   const [ticket, setTicket]                 = useState<TicketResult | null>(null)
-  const [highContrast, setHighContrast]     = useState(false)
+  const { highContrast } = useTheme()
   const [countdown, setCountdown]           = useState<number | null>(null)
   const [emitError, setEmitError]           = useState<string | null>(null)
 
@@ -169,7 +171,10 @@ export default function TotemPage() {
   // ══════════════════════════════════════════════════════════════════════════
   if (step === "home") {
     return (
-      <div className={`${bg} min-h-screen flex flex-col items-center justify-center`}>
+      <div className={`${bg} min-h-screen flex flex-col items-center justify-center relative`}>
+        <div className="absolute top-6 right-6">
+          <ThemeToggle />
+        </div>
         <div className="text-center px-8 max-w-lg w-full flex flex-col gap-4">
           <div className="text-8xl mb-2" aria-hidden="true">🏛️</div>
           <h1 className="text-5xl font-black leading-tight">Atendimento Presencial</h1>
@@ -182,13 +187,6 @@ export default function TotemPage() {
             aria-label="Emitir senha de atendimento"
           >
             Emitir Senha
-          </button>
-          <button
-            className={btnSecondary}
-            onClick={() => { touch(); setHighContrast((v) => !v) }}
-            aria-label="Alternar modo alto contraste"
-          >
-            {highContrast ? "☀️ Alto Contraste: LIGADO" : "🌙 Alto Contraste: DESLIGADO"}
           </button>
         </div>
       </div>
@@ -440,6 +438,7 @@ function TotemHeader({
         ←
       </button>
       <h1 className="text-2xl font-bold flex-1">{title}</h1>
+      <ThemeToggle />
     </div>
   )
 }

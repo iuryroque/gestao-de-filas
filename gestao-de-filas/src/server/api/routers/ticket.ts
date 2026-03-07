@@ -239,4 +239,21 @@ export const ticketRouter = createTRPCRouter({
         data: { status: "calling", calledAt: new Date() },
       });
     }),
+
+  // ── Painel público (US-03) ─────────────────────────────────────────────────
+
+  /**
+   * Returns the most recently called tickets (calling | awaiting_recall),
+   * including the desk name — used by the public display panel via polling.
+   */
+  recentCalls: publicProcedure
+    .input(z.object({ limit: z.number().int().min(1).max(10).default(5) }))
+    .query(async ({ ctx, input }) => {
+      return ctx.db.ticket.findMany({
+        where: { status: { in: ["calling", "awaiting_recall"] } },
+        orderBy: { calledAt: "desc" },
+        take: input.limit,
+        include: { desk: { select: { name: true } } },
+      });
+    }),
 });

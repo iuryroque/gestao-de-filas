@@ -1,6 +1,8 @@
 "use client"
 import React, { useCallback, useState } from "react"
 import { api } from "~/trpc/react"
+import { useTheme } from "../_components/ThemeContext"
+import { ThemeToggle } from "../_components/ThemeToggle"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -35,6 +37,7 @@ export default function GuichePage() {
   const [pauseReason, setPauseReason] = useState("")
   const [showPauseModal, setShowPauseModal] = useState(false)
   const [callError, setCallError]     = useState<string | null>(null)
+  const { highContrast } = useTheme()
 
   // ── Queries ────────────────────────────────────────────────────────────────
   const { data: desks, refetch: refetchDesks } = api.desk.list.useQuery()
@@ -136,10 +139,15 @@ export default function GuichePage() {
   // ══════════════════════════════════════════════════════════════════════════
   if (step === "select_desk") {
     return (
-      <main className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
-        <div className="w-full max-w-md bg-white rounded-2xl shadow-lg p-8">
-          <h1 className="text-2xl font-bold text-gray-800 mb-1">Acesso ao Guichê</h1>
-          <p className="text-gray-500 mb-6 text-sm">Selecione seu guichê para iniciar o atendimento</p>
+      <main className={`min-h-screen flex items-center justify-center p-6 transition-colors ${highContrast ? "bg-black" : "bg-gray-50"}`}>
+        <div className={`w-full max-w-md rounded-2xl shadow-lg p-8 transition-colors ${highContrast ? "bg-gray-900 border-2 border-white" : "bg-white"}`}>
+          <div className="flex justify-between items-start mb-6">
+            <div>
+              <h1 className={`text-2xl font-bold mb-1 ${highContrast ? "text-white" : "text-gray-800"}`}>Acesso ao Guichê</h1>
+              <p className={`text-sm ${highContrast ? "text-gray-400" : "text-gray-500"}`}>Selecione seu guichê para iniciar o atendimento</p>
+            </div>
+            <ThemeToggle />
+          </div>
 
           {/* Existing desks */}
           <div className="space-y-3 mb-6">
@@ -147,9 +155,13 @@ export default function GuichePage() {
               <button
                 key={d.id}
                 onClick={() => void handleSelectDesk(d)}
-                className="w-full flex items-center justify-between p-4 border-2 border-gray-200 rounded-xl hover:border-blue-500 hover:bg-blue-50 transition-colors"
+                className={`w-full flex items-center justify-between p-4 border-2 rounded-xl transition-all ${
+                  highContrast 
+                    ? "border-gray-700 hover:border-white hover:bg-gray-800 bg-black" 
+                    : "border-gray-200 hover:border-blue-500 hover:bg-blue-50"
+                }`}
               >
-                <span className="font-semibold text-gray-700">{d.name}</span>
+                <span className={`font-semibold ${highContrast ? "text-white" : "text-gray-700"}`}>{d.name}</span>
                 <span className={`text-xs px-2 py-1 rounded-full font-medium ${
                   d.status === "active"  ? "bg-green-100 text-green-700"  :
                   d.status === "paused"  ? "bg-yellow-100 text-yellow-700" :
@@ -165,8 +177,8 @@ export default function GuichePage() {
           </div>
 
           {/* Create new desk */}
-          <div className="border-t pt-6">
-            <p className="text-sm text-gray-500 mb-3">Ou crie um novo guichê:</p>
+          <div className={`border-t pt-6 ${highContrast ? "border-gray-800" : "border-gray-100"}`}>
+            <p className={`text-sm mb-3 ${highContrast ? "text-gray-400" : "text-gray-500"}`}>Ou crie um novo guichê:</p>
             <div className="flex gap-2">
               <input
                 type="text"
@@ -174,12 +186,20 @@ export default function GuichePage() {
                 onChange={(e) => setNewDeskName(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && void handleCreateDesk()}
                 placeholder="Ex: Guichê 01"
-                className="flex-1 border-2 border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
+                className={`flex-1 border-2 rounded-lg px-3 py-2 text-sm focus:outline-none transition-colors ${
+                  highContrast
+                    ? "bg-black border-gray-700 text-white focus:border-white"
+                    : "bg-white border-gray-200 focus:border-blue-500"
+                }`}
               />
               <button
                 onClick={() => void handleCreateDesk()}
                 disabled={!newDeskName.trim() || createDeskMut.isPending}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 ${
+                  highContrast
+                    ? "bg-white text-black hover:bg-gray-200 font-bold"
+                    : "bg-blue-600 text-white hover:bg-blue-700"
+                }`}
               >
                 Criar
               </button>
@@ -199,36 +219,39 @@ export default function GuichePage() {
   const canDeclareDefinitive = (currentTicket?.noShowCount ?? 0) >= MAX_NO_SHOW - 1
 
   return (
-    <main className="min-h-screen bg-gray-100 p-4">
+    <main className={`min-h-screen p-4 transition-colors ${highContrast ? "bg-black" : "bg-gray-100"}`}>
       <div className="max-w-2xl mx-auto">
 
         {/* ── Header ────────────────────────────────────────────────────── */}
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h1 className="text-xl font-bold text-gray-800">{desk?.name}</h1>
-            <span className={`text-sm font-medium ${isPaused ? "text-yellow-600" : "text-green-600"}`}>
+            <h1 className={`text-xl font-bold ${highContrast ? "text-white" : "text-gray-800"}`}>{desk?.name}</h1>
+            <span className={`text-sm font-medium ${isPaused ? "text-yellow-600" : highContrast ? "text-green-400" : "text-green-600"}`}>
               {isPaused ? `● Em pausa — ${desk?.pauseReason ?? ""}` : "● Ativo"}
             </span>
           </div>
-          <div className="flex gap-2">
-            {!isPaused ? (
-              <button
-                onClick={() => { setPauseReason(""); setShowPauseModal(true) }}
-                className="px-3 py-1.5 text-sm border-2 border-yellow-400 text-yellow-700 rounded-lg hover:bg-yellow-50 transition-colors"
-              >
-                Pausar
-              </button>
-            ) : (
-              <button
-                onClick={() => void handleResume()}
-                className="px-3 py-1.5 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-              >
-                Retomar
-              </button>
-            )}
+          <div className="flex gap-4 items-center">
+            <ThemeToggle />
+            <div className="flex gap-2">
+              {!isPaused ? (
+                <button
+                  onClick={() => { setPauseReason(""); setShowPauseModal(true) }}
+                  className="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded-xl transition-colors text-sm"
+                >
+                  Pausar
+                </button>
+              ) : (
+                <button
+                  onClick={handleResume}
+                  className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-xl transition-colors text-sm"
+                >
+                  Retomar
+                </button>
+              )}
+            </div>
             <button
               onClick={() => { setStep("select_desk"); setDesk(null) }}
-              className="px-3 py-1.5 text-sm text-gray-500 hover:text-gray-700 transition-colors"
+              className={`px-3 py-1.5 text-sm transition-colors ${highContrast ? "text-gray-400 hover:text-white" : "text-gray-500 hover:text-gray-700"}`}
             >
               Sair
             </button>
@@ -237,10 +260,10 @@ export default function GuichePage() {
 
         {/* ── Queue stats banner ────────────────────────────────────────── */}
         {queueStats && queueStats.length > 0 && (
-          <div className="bg-white rounded-xl px-4 py-2 mb-4 flex flex-wrap gap-4 text-sm text-gray-500">
+          <div className={`rounded-xl px-4 py-2 mb-4 flex flex-wrap gap-4 text-sm transition-colors ${highContrast ? "bg-gray-900 text-gray-400 border border-gray-800" : "bg-white text-gray-500 shadow-sm"}`}>
             {queueStats.map((q) => (
               <span key={q.queueName}>
-                <span className="font-semibold text-gray-700">{q.waiting}</span>{" "}
+                <span className={`font-semibold ${highContrast ? "text-gray-200" : "text-gray-700"}`}>{q.waiting}</span>{" "}
                 aguardando — {q.queueName}
               </span>
             ))}
@@ -248,37 +271,41 @@ export default function GuichePage() {
         )}
 
         {/* ── Current ticket card ───────────────────────────────────────── */}
-        <div className="bg-white rounded-2xl shadow p-6 mb-4">
+        <div className={`rounded-3xl shadow-xl overflow-hidden mb-6 transition-colors border-2 p-8 ${
+          highContrast ? "bg-gray-900 border-white" : "bg-white border-transparent"
+        }`}>
           {hasOpenTicket && currentTicket ? (
             <>
               {/* Ticket info */}
-              <div className="mb-5">
-                <div className="flex items-center gap-2 mb-1 flex-wrap">
-                  <span className="text-5xl font-black text-blue-700">{currentTicket.code}</span>
+              <div className="mb-8">
+                <div className="flex items-center gap-3 mb-2 flex-wrap">
+                  <span className={`text-6xl font-black ${highContrast ? "text-white" : "text-blue-700"}`}>{currentTicket.code}</span>
                   {currentTicket.isPriority && (
-                    <span className="bg-amber-100 text-amber-700 text-xs font-bold px-2 py-0.5 rounded-full">
+                    <span className="bg-amber-100 text-amber-700 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">
                       PRIORIDADE
                     </span>
                   )}
                   {isAwaitingRecall && (
-                    <span className="bg-orange-100 text-orange-700 text-xs font-bold px-2 py-0.5 rounded-full">
+                    <span className="bg-orange-100 text-orange-700 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">
                       AGUARDANDO RECONVOCAÇÃO
                     </span>
                   )}
                 </div>
-                <p className="text-gray-600 font-medium">{currentTicket.service ?? "Atendimento Geral"}</p>
-                <p className="text-sm text-gray-400 mt-0.5">
-                  Aguardou {waitTimeLabel(currentTicket.createdAt)}
+                <p className={`text-2xl font-medium ${highContrast ? "text-gray-300" : "text-gray-600"}`}>{currentTicket.service ?? "Atendimento Geral"}</p>
+                <p className={`text-sm mt-2 ${highContrast ? "text-gray-500" : "text-gray-400"}`}>
+                  Cidadão aguardou {waitTimeLabel(currentTicket.createdAt)}
                   {currentTicket.noShowCount > 0 && ` · ${currentTicket.noShowCount}ª chamada`}
                 </p>
               </div>
 
               {/* Action buttons */}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-4">
                 <button
                   onClick={() => void handleFinish()}
                   disabled={finishMut.isPending}
-                  className="py-5 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 disabled:opacity-50 transition-colors text-lg"
+                  className={`py-6 text-white font-bold rounded-2xl text-xl transition-all shadow-md disabled:opacity-50 ${
+                    highContrast ? "bg-green-700 border-2 border-white hover:bg-green-600" : "bg-green-600 hover:bg-green-700"
+                  }`}
                 >
                   ✓ Finalizar
                 </button>
@@ -287,7 +314,9 @@ export default function GuichePage() {
                   <button
                     onClick={() => void handleRecall()}
                     disabled={recallMut.isPending}
-                    className="py-5 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 disabled:opacity-50 transition-colors text-lg"
+                    className={`py-6 text-white font-bold rounded-2xl text-xl transition-all shadow-md disabled:opacity-50 ${
+                      highContrast ? "bg-blue-700 border-2 border-white hover:bg-blue-600" : "bg-blue-600 hover:bg-blue-700"
+                    }`}
                   >
                     📢 Reconvocar
                   </button>
@@ -295,18 +324,24 @@ export default function GuichePage() {
                   <button
                     onClick={() => void handleNoShow()}
                     disabled={noShowMut.isPending}
-                    className="py-5 bg-orange-500 text-white font-bold rounded-xl hover:bg-orange-600 disabled:opacity-50 transition-colors text-lg"
+                    className={`py-6 text-white font-bold rounded-2xl text-xl transition-all shadow-md disabled:opacity-50 ${
+                      highContrast ? "bg-orange-700 border-2 border-white hover:bg-orange-600" : "bg-orange-500 hover:bg-orange-600"
+                    }`}
                   >
                     ✗ Não Compareceu
                   </button>
                 )}
 
-                {/* Definitive no-show (only when awaiting recall and max attempts reached) */}
+                {/* Definitive no-show */}
                 {isAwaitingRecall && canDeclareDefinitive && (
                   <button
                     onClick={() => void handleNoShow()}
                     disabled={noShowMut.isPending}
-                    className="col-span-2 py-3 bg-red-100 text-red-700 font-semibold rounded-xl hover:bg-red-200 disabled:opacity-50 transition-colors text-sm"
+                    className={`col-span-2 py-4 font-bold rounded-2xl transition-all ${
+                      highContrast 
+                        ? "bg-red-950 text-red-300 border-2 border-red-800 hover:bg-red-900" 
+                        : "bg-red-50 text-red-700 hover:bg-red-100"
+                    }`}
                   >
                     Declarar Não Comparecimento Definitivo
                   </button>
@@ -314,20 +349,24 @@ export default function GuichePage() {
               </div>
             </>
           ) : (
-            <div className="text-center py-8">
-              <p className="text-gray-400 text-lg mb-6">Nenhuma senha em atendimento</p>
+            <div className="text-center py-12">
+              <p className={`text-xl mb-10 ${highContrast ? "text-gray-400" : "text-gray-400"}`}>Nenhuma senha em atendimento</p>
               <button
                 onClick={() => void handleCallNext()}
                 disabled={isPaused || callNextMut.isPending}
-                className="px-10 py-5 bg-blue-600 text-white text-xl font-bold rounded-2xl hover:bg-blue-700 disabled:opacity-50 transition-colors shadow-md"
+                className={`px-12 py-6 text-2xl font-bold rounded-3xl transition-all shadow-xl disabled:opacity-50 ${
+                  highContrast 
+                    ? "bg-white text-black hover:bg-gray-200" 
+                    : "bg-blue-600 text-white hover:bg-blue-700"
+                }`}
               >
                 {callNextMut.isPending ? "Chamando…" : "Chamar Próximo"}
               </button>
               {callError && (
-                <p className="text-orange-600 text-sm mt-4 max-w-sm mx-auto">{callError}</p>
+                <p className="text-red-500 text-sm mt-6 max-w-sm mx-auto font-medium">{callError}</p>
               )}
               {isPaused && (
-                <p className="text-yellow-600 text-sm mt-3">Retome o guichê para chamar o próximo.</p>
+                <p className="text-yellow-600 text-md mt-6 font-medium">Retome o guichê para chamar o próximo.</p>
               )}
             </div>
           )}
@@ -335,21 +374,25 @@ export default function GuichePage() {
 
         {/* ── Recent history ────────────────────────────────────────────── */}
         {recentTickets && recentTickets.length > 0 && (
-          <div className="bg-white rounded-2xl shadow p-4">
-            <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">
+          <div className={`rounded-3xl p-6 transition-colors ${highContrast ? "bg-gray-900 border-2 border-gray-800" : "bg-white shadow-lg"}`}>
+            <h2 className={`text-xs font-bold uppercase tracking-widest mb-4 ${highContrast ? "text-gray-500" : "text-gray-400"}`}>
               Atendimentos recentes
             </h2>
-            <div className="space-y-2">
+            <div className="space-y-3">
               {recentTickets.map((t) => (
-                <div key={t.id} className="flex items-center justify-between text-sm">
-                  <span className="font-bold text-gray-700 w-16">{t.code}</span>
-                  <span className="text-gray-500 flex-1 px-2 truncate">{t.service ?? "Geral"}</span>
-                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                <div key={t.id} className={`flex items-center justify-between p-4 rounded-2xl border transition-colors ${
+                  highContrast ? "bg-black border-gray-800" : "bg-gray-50 border-gray-100"
+                }`}>
+                  <div className="flex items-center gap-3">
+                    <span className={`font-bold text-lg ${highContrast ? "text-gray-200" : "text-gray-700"}`}>{t.code}</span>
+                    <span className={`text-xs ${highContrast ? "text-gray-400" : "text-gray-500"}`}>{t.service ?? "Geral"}</span>
+                  </div>
+                  <span className={`px-3 py-1 rounded-full text-xs font-bold ${
                     t.status === "done"
                       ? "bg-green-100 text-green-700"
                       : "bg-red-100 text-red-700"
                   }`}>
-                    {t.status === "done" ? "Finalizado" : "Não Compareceu"}
+                    {t.status === "done" ? "Finalizado" : "No-Show"}
                   </span>
                 </div>
               ))}
@@ -361,37 +404,41 @@ export default function GuichePage() {
       {/* ── Pause modal ───────────────────────────────────────────────────── */}
       {showPauseModal && (
         <div
-          className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50"
+          className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50 animate-in fade-in duration-200"
           onClick={(e) => { if (e.target === e.currentTarget) setShowPauseModal(false) }}
         >
-          <div className="bg-white rounded-2xl p-6 w-full max-w-sm">
-            <h2 className="text-lg font-bold text-gray-800 mb-4">Pausar Guichê</h2>
-            <div className="space-y-2 mb-5">
+          <div className={`rounded-3xl p-8 w-full max-w-sm shadow-2xl transition-colors ${highContrast ? "bg-gray-900 border-2 border-white" : "bg-white"}`}>
+            <h2 className={`text-2xl font-bold mb-6 ${highContrast ? "text-white" : "text-gray-800"}`}>Pausar Guichê</h2>
+            <div className="space-y-3 mb-8">
               {PAUSE_REASONS.map((r) => (
                 <button
                   key={r}
                   onClick={() => setPauseReason(r)}
-                  className={`w-full py-3 rounded-xl border-2 text-sm font-medium transition-colors ${
+                  className={`w-full py-4 rounded-xl border-2 text-md font-bold transition-all ${
                     pauseReason === r
-                      ? "border-blue-500 bg-blue-50 text-blue-700"
-                      : "border-gray-200 text-gray-600 hover:border-gray-400"
+                      ? (highContrast ? "border-white bg-white text-black" : "border-blue-500 bg-blue-50 text-blue-700")
+                      : (highContrast ? "border-gray-700 text-gray-400 hover:border-gray-500" : "border-gray-100 text-gray-600 hover:border-gray-300")
                   }`}
                 >
                   {r}
                 </button>
               ))}
             </div>
-            <div className="flex gap-3">
+            <div className="flex gap-4">
               <button
                 onClick={() => setShowPauseModal(false)}
-                className="flex-1 py-2.5 border-2 border-gray-200 rounded-xl text-gray-600 hover:border-gray-400 font-medium"
+                className={`flex-1 py-3 border-2 rounded-xl font-bold transition-colors ${
+                  highContrast ? "border-gray-700 text-gray-400 hover:border-white hover:text-white" : "border-gray-200 text-gray-400 hover:border-gray-300"
+                }`}
               >
                 Cancelar
               </button>
               <button
                 onClick={() => void handlePause()}
                 disabled={!pauseReason || pauseDeskMut.isPending}
-                className="flex-1 py-2.5 bg-yellow-500 text-white font-bold rounded-xl hover:bg-yellow-600 disabled:opacity-50 transition-colors"
+                className={`flex-1 py-3 rounded-xl font-bold transition-all disabled:opacity-50 ${
+                  highContrast ? "bg-white text-black hover:bg-gray-200" : "bg-yellow-500 text-white hover:bg-yellow-600"
+                }`}
               >
                 Pausar
               </button>
