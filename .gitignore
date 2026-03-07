@@ -36,3 +36,6 @@ db_data/
 # Worktrees and accidental copies
 *.worktrees
 gestao-de-filas.worktrees/
+
+# AI Agents
+agents/
