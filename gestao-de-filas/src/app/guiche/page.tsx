@@ -1,5 +1,5 @@
 "use client"
-import React, { useCallback, useState } from "react"
+import React, { useCallback, useEffect, useRef, useState } from "react"
 import { api } from "~/trpc/react"
 import { useTheme } from "../_components/ThemeContext"
 import { ThemeToggle } from "../_components/ThemeToggle"
@@ -7,6 +7,7 @@ import { ThemeToggle } from "../_components/ThemeToggle"
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type Step = "select_desk" | "main"
+type Role = "attendant" | "supervisor" | "admin"
 
 interface DeskInfo {
   id: string
@@ -20,6 +21,9 @@ interface DeskInfo {
 const MAX_NO_SHOW = 2
 
 const PAUSE_REASONS = ["Intervalo", "Suporte técnico", "Reunião", "Outro"]
+
+// Simulated role — in a real auth flow, this would come from the session
+const DEMO_ROLE: Role = "supervisor"
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -37,6 +41,10 @@ export default function GuichePage() {
   const [pauseReason, setPauseReason] = useState("")
   const [showPauseModal, setShowPauseModal] = useState(false)
   const [callError, setCallError]     = useState<string | null>(null)
+  const [timeoutWarning, setTimeoutWarning] = useState(false)
+  const [reintegrateNote, setReintegrateNote] = useState("")
+  const [reintegrateId, setReintegrateId]     = useState<string | null>(null)
+  const timeoutRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const { highContrast } = useTheme()
 
   // ── Queries ────────────────────────────────────────────────────────────────
@@ -59,15 +67,39 @@ export default function GuichePage() {
       { enabled: !!desk },
     )
 
+  const { data: avgTmaData } = api.ticket.avgTma.useQuery(
+    {},
+    { enabled: !!desk },
+  )
+
+  // ── Timeout Warning (US-04) ───────────────────────────────────────────────
+  useEffect(() => {
+    if (timeoutRef.current) clearInterval(timeoutRef.current)
+    if (!currentTicket?.calledAt) {
+      setTimeoutWarning(false)
+      return
+    }
+    const avgSeconds = avgTmaData?.avgTma ?? 5 * 60 // fallback: 5 min
+    const threshold = avgSeconds * 2 * 1000 // 2x TMA in ms
+
+    timeoutRef.current = setInterval(() => {
+      const elapsed = Date.now() - new Date(currentTicket.calledAt!).getTime()
+      setTimeoutWarning(elapsed > threshold)
+    }, 10_000) // check every 10s
+
+    return () => { if (timeoutRef.current) clearInterval(timeoutRef.current) }
+  }, [currentTicket?.calledAt, avgTmaData?.avgTma])
+
   // ── Mutations ─────────────────────────────────────────────────────────────
-  const createDeskMut   = api.desk.create.useMutation({ onSuccess: () => void refetchDesks() })
-  const activateDeskMut = api.desk.activate.useMutation()
-  const pauseDeskMut    = api.desk.pause.useMutation()
-  const resumeDeskMut   = api.desk.resume.useMutation()
-  const callNextMut     = api.ticket.callNext.useMutation()
-  const finishMut       = api.ticket.finish.useMutation()
-  const noShowMut       = api.ticket.noShow.useMutation()
-  const recallMut       = api.ticket.recall.useMutation()
+  const createDeskMut    = api.desk.create.useMutation({ onSuccess: () => void refetchDesks() })
+  const activateDeskMut  = api.desk.activate.useMutation()
+  const pauseDeskMut     = api.desk.pause.useMutation()
+  const resumeDeskMut    = api.desk.resume.useMutation()
+  const callNextMut      = api.ticket.callNext.useMutation()
+  const finishMut        = api.ticket.finish.useMutation()
+  const noShowMut        = api.ticket.noShow.useMutation()
+  const recallMut        = api.ticket.recall.useMutation()
+  const reintegrateMut   = api.ticket.reintegrate.useMutation()
 
   const refreshAll = useCallback(() => {
     void refetchCurrent()
@@ -132,6 +164,14 @@ export default function GuichePage() {
     if (!desk) return
     await resumeDeskMut.mutateAsync({ deskId: desk.id })
     setDesk((prev) => (prev ? { ...prev, status: "active", pauseReason: null } : prev))
+  }
+
+  async function handleReintegrate() {
+    if (!reintegrateId) return
+    await reintegrateMut.mutateAsync({ ticketId: reintegrateId, note: reintegrateNote || undefined })
+    setReintegrateId(null)
+    setReintegrateNote("")
+    refreshAll()
   }
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -270,6 +310,17 @@ export default function GuichePage() {
           </div>
         )}
 
+        {/* ── Timeout warning banner (US-04) ──────────────────────────── */}
+        {timeoutWarning && hasOpenTicket && (
+          <div className="mb-4 rounded-2xl px-5 py-4 bg-orange-500/10 border-2 border-orange-400 flex items-start gap-3 animate-pulse">
+            <span className="text-2xl mt-0.5" aria-hidden="true">⏱️</span>
+            <div>
+              <p className="font-bold text-orange-600 text-sm">Atendimento demorado detectado</p>
+              <p className="text-orange-500 text-xs mt-0.5">Este atendimento está em andamento há mais tempo que o esperado. Não se esqueça de registrar a conclusão.</p>
+            </div>
+          </div>
+        )}
+
         {/* ── Current ticket card ───────────────────────────────────────── */}
         <div className={`rounded-3xl shadow-xl overflow-hidden mb-6 transition-colors border-2 p-8 ${
           highContrast ? "bg-gray-900 border-white" : "bg-white border-transparent"
@@ -387,13 +438,28 @@ export default function GuichePage() {
                     <span className={`font-bold text-lg ${highContrast ? "text-gray-200" : "text-gray-700"}`}>{t.code}</span>
                     <span className={`text-xs ${highContrast ? "text-gray-400" : "text-gray-500"}`}>{t.service ?? "Geral"}</span>
                   </div>
-                  <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                    t.status === "done"
-                      ? "bg-green-100 text-green-700"
-                      : "bg-red-100 text-red-700"
-                  }`}>
-                    {t.status === "done" ? "Finalizado" : "No-Show"}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                      t.status === "done"
+                        ? "bg-green-100 text-green-700"
+                        : "bg-red-100 text-red-700"
+                    }`}>
+                      {t.status === "done" ? "Finalizado" : "No-Show"}
+                    </span>
+                    {/* Reintegrate button — supervisor only (US-05 CA 4) */}
+                    {t.status === "no_show" && DEMO_ROLE === "supervisor" && (
+                      <button
+                        onClick={() => { setReintegrateId(t.id); setReintegrateNote("") }}
+                        className={`text-xs font-bold px-2 py-1 rounded-lg transition-all ${
+                          highContrast
+                            ? "bg-blue-900 text-blue-300 hover:bg-blue-800"
+                            : "bg-blue-50 text-blue-600 hover:bg-blue-100"
+                        }`}
+                      >
+                        ↩ Reintegrar
+                      </button>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
@@ -441,6 +507,51 @@ export default function GuichePage() {
                 }`}
               >
                 Pausar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Reintegrate modal (US-05 CA 4 — Supervisor only) ──────────────── */}
+      {reintegrateId && (
+        <div
+          className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50"
+          onClick={(e) => { if (e.target === e.currentTarget) setReintegrateId(null) }}
+        >
+          <div className={`rounded-3xl p-8 w-full max-w-sm shadow-2xl ${highContrast ? "bg-gray-900 border-2 border-blue-400" : "bg-white"}`}>
+            <h2 className={`text-xl font-bold mb-2 ${highContrast ? "text-white" : "text-gray-800"}`}>Reintegrar à Fila</h2>
+            <p className={`text-sm mb-6 ${highContrast ? "text-gray-400" : "text-gray-500"}`}>
+              O cidadão retornará ao final da fila como uma nova emissão. Registre o motivo (opcional).
+            </p>
+            <textarea
+              value={reintegrateNote}
+              onChange={(e) => setReintegrateNote(e.target.value)}
+              placeholder="Ex: Cidadão precisou de auxílio para locomover-se"
+              rows={3}
+              className={`w-full rounded-xl border-2 px-4 py-3 text-sm resize-none focus:outline-none mb-6 transition-colors ${
+                highContrast
+                  ? "bg-black border-gray-700 text-white focus:border-blue-400"
+                  : "bg-gray-50 border-gray-200 focus:border-blue-500"
+              }`}
+            />
+            <div className="flex gap-4">
+              <button
+                onClick={() => setReintegrateId(null)}
+                className={`flex-1 py-3 border-2 rounded-xl font-bold transition-colors ${
+                  highContrast ? "border-gray-700 text-gray-400 hover:border-white hover:text-white" : "border-gray-200 text-gray-400 hover:border-gray-300"
+                }`}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => void handleReintegrate()}
+                disabled={reintegrateMut.isPending}
+                className={`flex-1 py-3 rounded-xl font-bold transition-all disabled:opacity-50 ${
+                  highContrast ? "bg-blue-600 text-white hover:bg-blue-500" : "bg-blue-600 text-white hover:bg-blue-700"
+                }`}
+              >
+                {reintegrateMut.isPending ? "Reintegrando…" : "Confirmar"}
               </button>
             </div>
           </div>

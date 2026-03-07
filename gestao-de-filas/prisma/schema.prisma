@@ -61,10 +61,12 @@ model User {
     email         String?   @unique
     emailVerified DateTime?
     image         String?
+    role          String    @default("attendant") // attendant | supervisor | admin
     accounts      Account[]
     sessions      Session[]
     posts         Post[]
     tickets       Ticket[]
+    ticketLogs    TicketLog[]
 }
 
 model VerificationToken {
@@ -115,15 +117,33 @@ model Ticket {
     priority    Int       @default(0)
     service     String?
     noShowCount Int       @default(0)
+    tma         Int?      // Tempo de Atendimento em segundos (calledAt → finishedAt)
     createdAt   DateTime  @default(now())
     calledAt    DateTime?
     finishedAt  DateTime?
 
-    queue Queue @relation(fields: [queueId], references: [id])
-    desk  Desk?  @relation(fields: [deskId], references: [id])
-    user  User?  @relation(fields: [userId], references: [id])
+    queue Queue      @relation(fields: [queueId], references: [id])
+    desk  Desk?      @relation(fields: [deskId], references: [id])
+    user  User?      @relation(fields: [userId], references: [id])
+    logs  TicketLog[]
 
     @@index([queueId, number])
     @@index([queueId, isPriority, status])
     @@index([deskId, status])
+}
+
+/// Audit log for attendant / supervisor actions on a ticket
+model TicketLog {
+    id        String   @id @default(cuid())
+    ticketId  String
+    action    String   // called | recalled | finished | no_show | reintegrated
+    actorId   String?  // User.id of the attendant or supervisor
+    note      String?  // optional note (e.g. reintegration reason)
+    createdAt DateTime @default(now())
+
+    ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+    actor  User?  @relation(fields: [actorId], references: [id])
+
+    @@index([ticketId])
+    @@index([actorId])
 }

@@ -153,12 +153,24 @@ export const ticketRouter = createTRPCRouter({
   }),
 
   /**
+   * Returns the audit log for a specific ticket.
+   */
+  logs: publicProcedure
+    .input(z.object({ ticketId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      return ctx.db.ticketLog.findMany({
+        where: { ticketId: input.ticketId },
+        orderBy: { createdAt: "asc" },
+      });
+    }),
+
+  /**
    * Calls the next waiting ticket for a desk.
    * Respects priority (P- first) then FIFO.
    * Throws if the desk already has an open ticket.
    */
   callNext: publicProcedure
-    .input(z.object({ deskId: z.string() }))
+    .input(z.object({ deskId: z.string(), actorId: z.string().optional() }))
     .mutation(async ({ ctx, input }) => {
       // Guard: no open ticket already active on this desk
       const open = await ctx.db.ticket.findFirst({
@@ -184,22 +196,50 @@ export const ticketRouter = createTRPCRouter({
         });
       }
 
-      return ctx.db.ticket.update({
+      const updated = await ctx.db.ticket.update({
         where: { id: next.id },
         data: { status: "calling", deskId: input.deskId, calledAt: new Date() },
       });
+
+      // Audit log
+      await ctx.db.ticketLog.create({
+        data: { ticketId: updated.id, action: "called", actorId: input.actorId },
+      });
+
+      return updated;
     }),
 
   /**
    * Finalizes the current ticket for a desk (marks as done).
+   * Calculates TMA (Tempo de Atendimento) in seconds.
    */
   finish: publicProcedure
-    .input(z.object({ ticketId: z.string() }))
+    .input(z.object({ ticketId: z.string(), actorId: z.string().optional() }))
     .mutation(async ({ ctx, input }) => {
-      return ctx.db.ticket.update({
+      const ticket = await ctx.db.ticket.findUniqueOrThrow({
         where: { id: input.ticketId },
-        data: { status: "done", finishedAt: new Date() },
       });
+
+      // Calculate TMA: seconds between first call and finish
+      const tma = ticket.calledAt
+        ? Math.round((Date.now() - ticket.calledAt.getTime()) / 1000)
+        : null;
+
+      const updated = await ctx.db.ticket.update({
+        where: { id: input.ticketId },
+        data: {
+          status: "done",
+          finishedAt: new Date(),
+          ...(tma !== null ? { tma } : {}),
+        },
+      });
+
+      // Audit log
+      await ctx.db.ticketLog.create({
+        data: { ticketId: input.ticketId, action: "finished", actorId: input.actorId },
+      });
+
+      return updated;
     }),
 
   /**
@@ -208,7 +248,7 @@ export const ticketRouter = createTRPCRouter({
    * - If noShowCount + 1 >= MAX_NO_SHOW    : → no_show (definitive)
    */
   noShow: publicProcedure
-    .input(z.object({ ticketId: z.string() }))
+    .input(z.object({ ticketId: z.string(), actorId: z.string().optional() }))
     .mutation(async ({ ctx, input }) => {
       const ticket = await ctx.db.ticket.findUniqueOrThrow({
         where: { id: input.ticketId },
@@ -218,7 +258,7 @@ export const ticketRouter = createTRPCRouter({
       const newCount = ticket.noShowCount + 1;
       const isDefinitive = newCount >= MAX_NO_SHOW;
 
-      return ctx.db.ticket.update({
+      const updated = await ctx.db.ticket.update({
         where: { id: input.ticketId },
         data: {
           noShowCount: newCount,
@@ -226,18 +266,73 @@ export const ticketRouter = createTRPCRouter({
           finishedAt: isDefinitive ? new Date() : undefined,
         },
       });
+
+      // Audit log
+      await ctx.db.ticketLog.create({
+        data: {
+          ticketId: input.ticketId,
+          action: isDefinitive ? "no_show" : "first_no_show",
+          actorId: input.actorId,
+        },
+      });
+
+      return updated;
     }),
 
   /**
    * Recalls a ticket that is in awaiting_recall state.
    */
   recall: publicProcedure
-    .input(z.object({ ticketId: z.string() }))
+    .input(z.object({ ticketId: z.string(), actorId: z.string().optional() }))
     .mutation(async ({ ctx, input }) => {
-      return ctx.db.ticket.update({
+      const updated = await ctx.db.ticket.update({
         where: { id: input.ticketId },
         data: { status: "calling", calledAt: new Date() },
       });
+
+      // Audit log
+      await ctx.db.ticketLog.create({
+        data: { ticketId: input.ticketId, action: "recalled", actorId: input.actorId },
+      });
+
+      return updated;
+    }),
+
+  /**
+   * Reintegrates a no-show ticket back to the end of the queue.
+   * This is a supervisor-only action in the frontend (enforced via role check).
+   */
+  reintegrate: publicProcedure
+    .input(
+      z.object({
+        ticketId: z.string(),
+        note: z.string().optional(),
+        actorId: z.string().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const updated = await ctx.db.ticket.update({
+        where: { id: input.ticketId },
+        data: {
+          status: "waiting",
+          deskId: null,
+          calledAt: null,
+          finishedAt: null,
+          noShowCount: 0,
+        },
+      });
+
+      // Audit log
+      await ctx.db.ticketLog.create({
+        data: {
+          ticketId: input.ticketId,
+          action: "reintegrated",
+          actorId: input.actorId,
+          note: input.note,
+        },
+      });
+
+      return updated;
     }),
 
   // ── Painel público (US-03) ─────────────────────────────────────────────────
@@ -255,5 +350,27 @@ export const ticketRouter = createTRPCRouter({
         take: input.limit,
         include: { desk: { select: { name: true } } },
       });
+    }),
+
+  /**
+   * Returns the average TMA (in seconds) across recent done tickets.
+   * Used to compute the timeout warning threshold in the Guichê UI.
+   */
+  avgTma: publicProcedure
+    .input(z.object({ queueId: z.string().optional(), last: z.number().int().default(20) }))
+    .query(async ({ ctx, input }) => {
+      const tickets = await ctx.db.ticket.findMany({
+        where: {
+          status: "done",
+          tma: { not: null },
+          ...(input.queueId ? { queueId: input.queueId } : {}),
+        },
+        orderBy: { finishedAt: "desc" },
+        take: input.last,
+        select: { tma: true },
+      });
+      if (tickets.length === 0) return { avgTma: null };
+      const sum = tickets.reduce((acc, t) => acc + (t.tma ?? 0), 0);
+      return { avgTma: Math.round(sum / tickets.length) };
     }),
 });
