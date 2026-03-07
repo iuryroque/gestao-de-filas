@@ -10,12 +10,54 @@ app.use(express.json());
 
 app.get('/', (req, res) => res.json({ service: 'gestao-filas-backend', status: 'ok' }));
 
+// List services
+app.get('/services', async (req, res) => {
+  try {
+    const { all } = req.query;
+    const filter = all === 'true' ? {} : { isActive: true };
+    const services = await store.listServices(filter);
+    res.json(services);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Create service
+app.post('/services', async (req, res) => {
+  const { id, name, queueId, category, isActive } = req.body;
+  if (!id || !name || !queueId) {
+    return res.status(400).json({ error: 'id, name and queueId are required' });
+  }
+  try {
+    const service = await store.createService({ id, name, queueId, category, isActive: isActive !== false });
+    res.status(201).json(service);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Emitir senha
 app.post('/tickets', async (req, res) => {
-  const { queueId, meta } = req.body;
-  if (!queueId) return res.status(400).json({ error: 'queueId is required' });
+  let { queueId, serviceId, meta, priorityFlag, followupPhone } = req.body;
+
+  if (serviceId && !queueId) {
+    const service = await store.getService(serviceId);
+    if (!service) {
+      return res.status(422).json({ error: 'Service not found', serviceId });
+    }
+    if (!service.isActive) {
+      return res.status(422).json({ error: 'Service is currently unavailable', serviceId });
+    }
+    queueId = service.queueId;
+  }
+
+  if (!queueId) return res.status(400).json({ error: 'queueId or serviceId is required' });
   try {
-    const ticket = await store.createTicket(queueId, meta || {});
+    const ticket = await store.createTicket(queueId, meta || {}, {
+      serviceId: serviceId || null,
+      priorityFlag: !!priorityFlag,
+      followupPhone: followupPhone || null,
+    });
     // broadcast via websocket
     if (global.__wss_broadcast) global.__wss_broadcast({ type: 'ticket.created', ticket });
     res.status(201).json(ticket);
