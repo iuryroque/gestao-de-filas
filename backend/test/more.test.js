@@ -2,6 +2,11 @@ const request = require('supertest');
 const app = require('../src/index');
 
 describe('Additional scenarios and edge cases', () => {
+  beforeAll(async () => {
+    const store = require('../src/store');
+    if (store && store._resetDatabase) await store._resetDatabase();
+  });
+
   test('calling nonexistent ticket returns 404', async () => {
     const res = await request(app).post('/tickets/does-not-exist/call').send({ guiche: '1' });
     expect(res.status).toBe(404);
@@ -32,6 +37,8 @@ describe('Additional scenarios and edge cases', () => {
     const list = await request(app).get('/tickets').query({ queueId: 'fifo', status: 'waiting' });
     expect(list.status).toBe(200);
     expect(Array.isArray(list.body)).toBe(true);
+    // debug output for flaky ordering
+    
     // first waiting should be the first created
     expect(list.body[0].id).toBe(a.body.id);
 

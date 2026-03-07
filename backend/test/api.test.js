@@ -4,6 +4,11 @@ const app = require('../src/index');
 describe('API smoke tests', () => {
   let created;
 
+  beforeAll(async () => {
+    const store = require('../src/store');
+    if (store && store._resetDatabase) await store._resetDatabase();
+  });
+
   test('POST /tickets should create a ticket', async () => {
     const res = await request(app)
       .post('/tickets')
