@@ -64,6 +64,7 @@ model User {
     accounts      Account[]
     sessions      Session[]
     posts         Post[]
+    tickets       Ticket[]
 }
 
 model VerificationToken {
@@ -72,4 +73,57 @@ model VerificationToken {
     expires    DateTime
 
     @@unique([identifier, token])
+}
+
+// Domain models for queue management
+model Queue {
+    id        String   @id @default(cuid())
+    name      String   @unique
+    isActive  Boolean  @default(true)
+    tma       Int      @default(5) // average service time in minutes
+    createdAt DateTime @default(now())
+    tickets   Ticket[]
+    desks     Desk[]
+
+    @@index([name])
+}
+
+/// Attendant desk (guichê)
+model Desk {
+    id          String   @id @default(cuid())
+    name        String   @unique
+    status      String   @default("closed") // active | paused | closed
+    pauseReason String?
+    queueId     String?  // null = serves all queues
+    createdAt   DateTime @default(now())
+
+    queue   Queue?   @relation(fields: [queueId], references: [id])
+    tickets Ticket[]
+
+    @@index([status])
+}
+
+model Ticket {
+    id          String    @id @default(cuid())
+    code        String    @default("") // display code: "P-0042" (priority) or "0042" (regular)
+    number      Int
+    queueId     String
+    deskId      String?
+    userId      String?
+    status      String    @default("waiting") // waiting | calling | awaiting_recall | done | no_show
+    isPriority  Boolean   @default(false)
+    priority    Int       @default(0)
+    service     String?
+    noShowCount Int       @default(0)
+    createdAt   DateTime  @default(now())
+    calledAt    DateTime?
+    finishedAt  DateTime?
+
+    queue Queue @relation(fields: [queueId], references: [id])
+    desk  Desk?  @relation(fields: [deskId], references: [id])
+    user  User?  @relation(fields: [userId], references: [id])
+
+    @@index([queueId, number])
+    @@index([queueId, isPriority, status])
+    @@index([deskId, status])
 }
