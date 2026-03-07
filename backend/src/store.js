@@ -11,6 +11,9 @@ module.exports = {
   noshowTicket: (...args) => client.noshowTicket(...args),
   listTickets: (...args) => client.listTickets(...args),
   getQueueStats: (...args) => client.getQueueStats(...args),
+  createService: (...args) => client.createService(...args),
+  getService: (...args) => client.getService(...args),
+  listServices: (...args) => client.listServices(...args),
   // expose reset for tests if needed
   _resetDatabase: (...args) => client.resetDatabase(...args)
 };

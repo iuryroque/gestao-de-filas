@@ -35,7 +35,34 @@ function migrate() {
     attendant TEXT,
     result TEXT,
     noshowReason TEXT,
-    history TEXT
+    history TEXT,
+    serviceId TEXT,
+    priorityFlag INTEGER DEFAULT 0,
+    code TEXT,
+    followupPhone TEXT
+  )`).run();
+
+  // Idempotent additions for existing installations
+  const alterations = [
+    'ALTER TABLE tickets ADD COLUMN serviceId TEXT',
+    'ALTER TABLE tickets ADD COLUMN priorityFlag INTEGER DEFAULT 0',
+    'ALTER TABLE tickets ADD COLUMN code TEXT',
+    'ALTER TABLE tickets ADD COLUMN followupPhone TEXT',
+  ];
+  for (const sql of alterations) {
+    try { db.prepare(sql).run(); } catch (err) {
+      // Ignore "duplicate column name" errors — column already exists
+      if (!err.message || !err.message.includes('duplicate column name')) throw err;
+    }
+  }
+
+  db.prepare(`CREATE TABLE IF NOT EXISTS services (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    category TEXT,
+    queueId TEXT NOT NULL,
+    isActive INTEGER DEFAULT 1,
+    createdAt TEXT
   )`).run();
 }
 
@@ -51,9 +78,12 @@ function _rowToTicket(row) {
   return {
     id: row.id,
     queueId: row.queueId,
+    serviceId: row.serviceId || null,
     number: row.number,
+    code: row.code || null,
     meta: _parseJsonField(row.meta) || {},
     status: row.status,
+    priorityFlag: !!row.priorityFlag,
     createdAt: row.createdAt,
     calledAt: row.calledAt,
     attendedAt: row.attendedAt,
@@ -64,13 +94,44 @@ function _rowToTicket(row) {
     result: _parseJsonField(row.result) || null,
     noshowReason: row.noshowReason || null,
     history: _parseJsonField(row.history) || []
+    // followupPhone intentionally excluded (LGPD)
   };
+}
+
+function _rowToService(row) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    name: row.name,
+    category: row.category || null,
+    queueId: row.queueId,
+    isActive: !!row.isActive,
+    createdAt: row.createdAt,
+  };
+}
+
+const DEFAULT_TMA_SECONDS = 300;
+
+function _computeTma(queueId) {
+  const rows = db.prepare(
+    `SELECT calledAt, finalizedAt FROM tickets
+     WHERE queueId = ? AND status = 'finalized'
+       AND calledAt IS NOT NULL AND finalizedAt IS NOT NULL`
+  ).all(queueId);
+
+  const samples = rows
+    .map((r) => (new Date(r.finalizedAt) - new Date(r.calledAt)) / 1000)
+    .filter((x) => x > 0 && !Number.isNaN(x));
+
+  if (!samples.length) return DEFAULT_TMA_SECONDS;
+  return Math.round(samples.reduce((s, x) => s + x, 0) / samples.length);
 }
 
 function resetDatabase() {
   // drop tables and re-run migrations — useful for tests
   db.prepare('DROP TABLE IF EXISTS tickets').run();
   db.prepare('DROP TABLE IF EXISTS queues').run();
+  db.prepare('DROP TABLE IF EXISTS services').run();
   migrate();
 }
 
@@ -81,17 +142,42 @@ function ensureQueue(queueId) {
   return { queueId, lastNumber: 0 };
 }
 
-function createTicket(queueId, meta = {}) {
+function createTicket(queueId, meta = {}, opts = {}) {
+  const { serviceId = null, priorityFlag = false, followupPhone = null } = opts;
+
   const q = ensureQueue(queueId);
   const last = db.prepare('SELECT lastNumber FROM queues WHERE queueId = ?').get(queueId).lastNumber;
   const number = last + 1;
   db.prepare('UPDATE queues SET lastNumber = ? WHERE queueId = ?').run(number, queueId);
+
   const id = require('uuid').v4();
   const createdAt = new Date().toISOString();
   const history = [{ when: createdAt, action: 'created' }];
-  db.prepare(`INSERT INTO tickets(id, queueId, number, meta, status, createdAt, history)
-    VALUES(?,?,?,?,?,?,?)`).run(id, queueId, number, JSON.stringify(meta || {}), 'waiting', createdAt, JSON.stringify(history));
-  return getTicket(id);
+  const code = priorityFlag
+    ? `P-${String(number).padStart(3, '0')}`
+    : String(number).padStart(3, '0');
+
+  db.prepare(`INSERT INTO tickets(id, queueId, number, meta, status, createdAt, history, serviceId, priorityFlag, code, followupPhone)
+    VALUES(?,?,?,?,?,?,?,?,?,?,?)`).run(
+    id, queueId, number, JSON.stringify(meta || {}), 'waiting', createdAt,
+    JSON.stringify(history), serviceId, priorityFlag ? 1 : 0, code, followupPhone
+  );
+
+  const ticket = getTicket(id);
+
+  // Compute queue position (1-indexed, including this ticket)
+  const position = db.prepare(
+    'SELECT COUNT(*) as cnt FROM tickets WHERE queueId = ? AND status = ?'
+  ).get(queueId, 'waiting').cnt;
+
+  // estWait = tickets ahead × TMA (first in queue waits 0)
+  const tma = _computeTma(queueId);
+  const estWait = Math.max(0, (position - 1) * tma);
+
+  const baseUrl = process.env.BASE_URL || '';
+  const followUrl = `${baseUrl}/acompanhar/${id}`;
+
+  return Object.assign({}, ticket, { position, estWait, followUrl });
 }
 
 function getTicket(id) {
@@ -105,7 +191,7 @@ function updateTicket(id, patch) {
   const merged = Object.assign({}, t, patch);
   // keep history as array
   const history = Array.isArray(merged.history) ? merged.history : (t.history || []);
-  db.prepare(`UPDATE tickets SET queueId = ?, number = ?, meta = ?, status = ?, createdAt = ?, calledAt = ?, attendedAt = ?, finalizedAt = ?, noshowAt = ?, guiche = ?, attendant = ?, result = ?, noshowReason = ?, history = ? WHERE id = ?`).run(
+  db.prepare(`UPDATE tickets SET queueId = ?, number = ?, meta = ?, status = ?, createdAt = ?, calledAt = ?, attendedAt = ?, finalizedAt = ?, noshowAt = ?, guiche = ?, attendant = ?, result = ?, noshowReason = ?, history = ?, serviceId = ?, priorityFlag = ?, code = ? WHERE id = ?`).run(
     merged.queueId,
     merged.number,
     JSON.stringify(merged.meta || {}),
@@ -120,6 +206,9 @@ function updateTicket(id, patch) {
     merged.result ? JSON.stringify(merged.result) : null,
     merged.noshowReason || null,
     JSON.stringify(history),
+    merged.serviceId || null,
+    merged.priorityFlag ? 1 : 0,
+    merged.code || null,
     id
   );
   return getTicket(id);
@@ -158,6 +247,8 @@ function finalizeTicket(id, result = {}) {
   t.result = result;
   t.history = t.history || [];
   t.history.push({ when: finalizedAt, action: 'finalized', result });
+  // Clear followupPhone on finalization (LGPD: retain only during ticket lifetime)
+  db.prepare('UPDATE tickets SET followupPhone = NULL WHERE id = ?').run(id);
   return updateTicket(id, t);
 }
 
@@ -203,6 +294,32 @@ function listTickets(filter = {}) {
   return rows.map(_rowToTicket);
 }
 
+function createService({ id, name, category, queueId, isActive = true }) {
+  const createdAt = new Date().toISOString();
+  db.prepare(`INSERT INTO services(id, name, category, queueId, isActive, createdAt)
+    VALUES(?,?,?,?,?,?)`).run(id, name, category || null, queueId, isActive ? 1 : 0, createdAt);
+  return getService(id);
+}
+
+function getService(id) {
+  const row = db.prepare('SELECT * FROM services WHERE id = ?').get(id);
+  return _rowToService(row);
+}
+
+function listServices(filter = {}) {
+  const clauses = [];
+  const params = [];
+  if (filter.isActive !== undefined) {
+    clauses.push('isActive = ?');
+    params.push(filter.isActive ? 1 : 0);
+  }
+  let sql = 'SELECT * FROM services';
+  if (clauses.length) sql += ' WHERE ' + clauses.join(' AND ');
+  sql += ' ORDER BY name ASC';
+  const rows = db.prepare(sql).all(...params);
+  return rows.map(_rowToService);
+}
+
 function getQueueStats(queueId) {
   const total = db.prepare('SELECT COUNT(*) as cnt FROM tickets WHERE queueId = ?').get(queueId).cnt;
   const waiting = db.prepare('SELECT COUNT(*) as cnt FROM tickets WHERE queueId = ? AND status = ?').get(queueId, 'waiting').cnt;
@@ -238,6 +355,9 @@ module.exports = {
   noshowTicket,
   listTickets,
   getQueueStats,
+  createService,
+  getService,
+  listServices,
   resetDatabase,
   _db: db
 };

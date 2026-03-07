@@ -11,6 +11,9 @@
     "migrate:down": "node-pg-migrate down -m backend/migrations",
     "start:dev:pg": "cross-env DB_CLIENT=pg node src/index.js"
   },
+  "jest": {
+    "setupFiles": ["./test/jest.setup.js"]
+  },
   "dependencies": {
     "better-sqlite3": "^12.6.2",
     "pg": "^8.10.0",
