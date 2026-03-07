@@ -32,3 +32,7 @@ gestao-de-filas/generated/
 
 # Docker volumes
 db_data/
+
+# Worktrees and accidental copies
+*.worktrees
+gestao-de-filas.worktrees/
