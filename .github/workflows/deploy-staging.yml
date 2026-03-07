@@ -22,10 +22,7 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
         run: |
-          if [ -f backend/migrations/0001_init.sql ]; then
-            echo "Applying SQL migrations..."
-            PGPASSWORD=$(echo ${{ secrets.STAGING_DATABASE_URL }} | sed -n 's#.*:\/\/.\+:\(.\+\)@.*#\1#p') || true
-          fi
+          npm run migrate:up
 
       - name: Install Railway CLI
         run: npm install -g @railway/cli

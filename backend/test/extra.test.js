@@ -5,6 +5,11 @@ const WebSocket = require('ws');
 describe('Extra API tests: transfer, noshow, websocket', () => {
   let created;
 
+  beforeAll(async () => {
+    const store = require('../src/store');
+    if (store && store._resetDatabase) await store._resetDatabase();
+  });
+
   test('should create a ticket to be transferred and noshowed', async () => {
     const res = await request(app).post('/tickets').send({ queueId: 'q1', meta: { service: 'X', source: 'jest-extra' } });
     expect(res.status).toBe(201);

@@ -45,12 +45,11 @@ jobs:
         env:
           PGPASSWORD: postgres
 
-      - name: Install psql client
-        run: sudo apt-get update && sudo apt-get install -y postgresql-client
-
-      - name: Apply SQL migrations (initial)
+      - name: Run migrations (node-pg-migrate)
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/gestao_filas
         run: |
-          PGPASSWORD=postgres psql -h localhost -U postgres -d gestao_filas -f backend/migrations/0001_init.sql
+          npm run migrate:up
 
       - name: Run tests (Postgres)
         env:
