@@ -373,4 +373,155 @@ export const ticketRouter = createTRPCRouter({
       const sum = tickets.reduce((acc, t) => acc + (t.tma ?? 0), 0);
       return { avgTma: Math.round(sum / tickets.length) };
     }),
+
+  // ── Transferência (US-06) ──────────────────────────────────────────────────
+
+  /**
+   * Returns info about a queue for the transfer modal:
+   * waiting count, estimated wait, active desks count.
+   */
+  queueInfo: publicProcedure
+    .input(z.object({ queueId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const queue = await ctx.db.queue.findUniqueOrThrow({
+        where: { id: input.queueId },
+      });
+
+      const waitingCount = await ctx.db.ticket.count({
+        where: { queueId: input.queueId, status: "waiting" },
+      });
+
+      // Count desks actively serving this queue (or all queues if queueId is null)
+      const activeDesks = await ctx.db.desk.count({
+        where: {
+          status: "active",
+          OR: [{ queueId: input.queueId }, { queueId: null }],
+        },
+      });
+
+      const estimatedWaitMinutes = waitingCount * queue.tma;
+
+      return {
+        queueId: queue.id,
+        queueName: queue.name,
+        waitingCount,
+        estimatedWaitMinutes,
+        activeDesks,
+      };
+    }),
+
+  /**
+   * Lists all queues (for the transfer modal selector).
+   */
+  listQueues: publicProcedure.query(async ({ ctx }) => {
+    return ctx.db.queue.findMany({
+      where: { isActive: true },
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    });
+  }),
+
+  /**
+   * Transfers a ticket from its current queue to a target queue.
+   * - Closes the original ticket with status "transferred"
+   * - Creates a new ticket in the target queue preserving:
+   *   · createdAt (original timestamp for fair positioning)
+   *   · isPriority / priority
+   *   · service
+   * - Links original ↔ new via transferredFromId / transferredToId
+   * - Logs the transfer action in TicketLog
+   * - Enforces max 2 transfers per ticket chain
+   */
+  transfer: publicProcedure
+    .input(
+      z.object({
+        ticketId: z.string(),
+        targetQueueId: z.string(),
+        actorId: z.string().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      // 1. Fetch original ticket
+      const original = await ctx.db.ticket.findUniqueOrThrow({
+        where: { id: input.ticketId },
+        include: { queue: { select: { name: true } } },
+      });
+
+      // 2. Guard: must be in active service (calling or awaiting_recall)
+      if (!["calling", "awaiting_recall"].includes(original.status)) {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message: "Nenhum atendimento ativo para transferir.",
+        });
+      }
+
+      // 3. Guard: max 2 transfers
+      if (original.transferCount >= 2) {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message: "Este ticket já atingiu o limite de 2 transferências. É necessária aprovação do supervisor.",
+        });
+      }
+
+      // 4. Guard: can't transfer to same queue
+      if (original.queueId === input.targetQueueId) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Não é possível transferir para a mesma fila.",
+        });
+      }
+
+      // 5. Get target queue info
+      const targetQueue = await ctx.db.queue.findUniqueOrThrow({
+        where: { id: input.targetQueueId },
+      });
+
+      // 6. Compute new ticket number in target queue (preserving the kind)
+      const lastOfKind = await ctx.db.ticket.findFirst({
+        where: { queueId: input.targetQueueId, isPriority: original.isPriority },
+        orderBy: { number: "desc" },
+        select: { number: true },
+      });
+      const newNumber = (lastOfKind?.number ?? 0) + 1;
+      const paddedNum = String(newNumber).padStart(4, "0");
+      const newCode = original.isPriority ? `P-${paddedNum}` : paddedNum;
+
+      // 7. Create new ticket in target queue — preserving original createdAt for fair FIFO
+      const newTicket = await ctx.db.ticket.create({
+        data: {
+          code: newCode,
+          number: newNumber,
+          queueId: input.targetQueueId,
+          status: "waiting",
+          isPriority: original.isPriority,
+          priority: original.priority,
+          service: original.service,
+          transferredFromId: original.id,
+          transferCount: original.transferCount + 1,
+          createdAt: original.createdAt, // preserve original timestamp for fair positioning
+        },
+      });
+
+      // 8. Close original ticket with status "transferred" and link to new one
+      await ctx.db.ticket.update({
+        where: { id: original.id },
+        data: {
+          status: "transferred",
+          finishedAt: new Date(),
+          transferredToId: newTicket.id,
+        },
+      });
+
+      // 9. Audit log
+      await ctx.db.ticketLog.create({
+        data: {
+          ticketId: original.id,
+          action: "transferred",
+          actorId: input.actorId,
+          note: `Transferido de "${original.queue.name}" para "${targetQueue.name}"`,
+        },
+      });
+
+      return { original: { id: original.id, code: original.code }, newTicket };
+    }),
 });

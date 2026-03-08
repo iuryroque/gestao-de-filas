@@ -27,7 +27,7 @@ export default function Home() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-3 md:gap-8 w-full max-w-5xl">
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4 md:gap-8 w-full max-w-5xl">
           <Link
             className={`flex flex-col gap-4 rounded-2xl p-8 border-2 transition-all hover:scale-105 ${
               highContrast 
@@ -70,6 +70,21 @@ export default function Home() {
             <h3 className="text-2xl font-bold">Painel →</h3>
             <div className={`text-lg ${highContrast ? "text-slate-400" : "text-slate-600"}`}>
               Exibição pública de chamadas com aviso sonoro.
+            </div>
+          </Link>
+
+          <Link
+            className={`flex flex-col gap-4 rounded-2xl p-8 border-2 transition-all hover:scale-105 ${
+              highContrast 
+                ? "bg-slate-800 border-slate-700 hover:border-white" 
+                : "bg-white border-transparent shadow-xl hover:shadow-2xl"
+            }`}
+            href="/dashboard"
+          >
+            <div className="text-4xl">📊</div>
+            <h3 className="text-2xl font-bold">Dashboard →</h3>
+            <div className={`text-lg ${highContrast ? "text-slate-400" : "text-slate-600"}`}>
+              Monitoramento em tempo real com alertas de SLA para supervisores.
             </div>
           </Link>
         </div>

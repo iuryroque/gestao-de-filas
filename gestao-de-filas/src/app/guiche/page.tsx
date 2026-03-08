@@ -44,6 +44,9 @@ export default function GuichePage() {
   const [timeoutWarning, setTimeoutWarning] = useState(false)
   const [reintegrateNote, setReintegrateNote] = useState("")
   const [reintegrateId, setReintegrateId]     = useState<string | null>(null)
+  const [showTransferModal, setShowTransferModal] = useState(false)
+  const [selectedQueueId, setSelectedQueueId]     = useState<string | null>(null)
+  const [transferError, setTransferError]         = useState<string | null>(null)
   const timeoutRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const { highContrast } = useTheme()
 
@@ -56,10 +59,13 @@ export default function GuichePage() {
       { enabled: !!desk, refetchInterval: 4_000 },
     )
 
-  const { data: queueStats } = api.ticket.queueStats.useQuery(undefined, {
-    enabled: !!desk,
-    refetchInterval: 8_000,
-  })
+  // US-07: queue status panel — uses dashboard overview filtered to the desk's queue
+  const currentQueueId = currentTicket?.queueId
+  const { data: queueOverview } = api.dashboard.overview.useQuery(
+    { queueId: currentQueueId },
+    { enabled: !!desk && !!currentQueueId, refetchInterval: 3_000 },
+  )
+  const queuePanel = queueOverview?.[0] ?? null
 
   const { data: recentTickets, refetch: refetchRecent } =
     api.ticket.recentForDesk.useQuery(
@@ -90,6 +96,16 @@ export default function GuichePage() {
     return () => { if (timeoutRef.current) clearInterval(timeoutRef.current) }
   }, [currentTicket?.calledAt, avgTmaData?.avgTma])
 
+  // ── Transfer queries (US-06) ───────────────────────────────────────────────
+  const { data: allQueues } = api.ticket.listQueues.useQuery(undefined, {
+    enabled: showTransferModal,
+  })
+
+  const { data: targetQueueInfo } = api.ticket.queueInfo.useQuery(
+    { queueId: selectedQueueId ?? "" },
+    { enabled: !!selectedQueueId },
+  )
+
   // ── Mutations ─────────────────────────────────────────────────────────────
   const createDeskMut    = api.desk.create.useMutation({ onSuccess: () => void refetchDesks() })
   const activateDeskMut  = api.desk.activate.useMutation()
@@ -100,6 +116,7 @@ export default function GuichePage() {
   const noShowMut        = api.ticket.noShow.useMutation()
   const recallMut        = api.ticket.recall.useMutation()
   const reintegrateMut   = api.ticket.reintegrate.useMutation()
+  const transferMut      = api.ticket.transfer.useMutation()
 
   const refreshAll = useCallback(() => {
     void refetchCurrent()
@@ -172,6 +189,23 @@ export default function GuichePage() {
     setReintegrateId(null)
     setReintegrateNote("")
     refreshAll()
+  }
+
+  async function handleTransfer() {
+    if (!currentTicket || !selectedQueueId) return
+    setTransferError(null)
+    try {
+      await transferMut.mutateAsync({
+        ticketId: currentTicket.id,
+        targetQueueId: selectedQueueId,
+      })
+      setShowTransferModal(false)
+      setSelectedQueueId(null)
+      refreshAll()
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Erro ao transferir."
+      setTransferError(msg)
+    }
   }
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -298,18 +332,6 @@ export default function GuichePage() {
           </div>
         </div>
 
-        {/* ── Queue stats banner ────────────────────────────────────────── */}
-        {queueStats && queueStats.length > 0 && (
-          <div className={`rounded-xl px-4 py-2 mb-4 flex flex-wrap gap-4 text-sm transition-colors ${highContrast ? "bg-gray-900 text-gray-400 border border-gray-800" : "bg-white text-gray-500 shadow-sm"}`}>
-            {queueStats.map((q) => (
-              <span key={q.queueName}>
-                <span className={`font-semibold ${highContrast ? "text-gray-200" : "text-gray-700"}`}>{q.waiting}</span>{" "}
-                aguardando — {q.queueName}
-              </span>
-            ))}
-          </div>
-        )}
-
         {/* ── Timeout warning banner (US-04) ──────────────────────────── */}
         {timeoutWarning && hasOpenTicket && (
           <div className="mb-4 rounded-2xl px-5 py-4 bg-orange-500/10 border-2 border-orange-400 flex items-start gap-3 animate-pulse">
@@ -397,6 +419,18 @@ export default function GuichePage() {
                     Declarar Não Comparecimento Definitivo
                   </button>
                 )}
+
+                {/* Transfer button (US-06) */}
+                <button
+                  onClick={() => { setShowTransferModal(true); setSelectedQueueId(null); setTransferError(null) }}
+                  className={`col-span-2 py-4 font-bold rounded-2xl transition-all text-sm ${
+                    highContrast
+                      ? "bg-purple-950 text-purple-300 border-2 border-purple-700 hover:bg-purple-900"
+                      : "bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200"
+                  }`}
+                >
+                  ↗ Transferir para outra fila
+                </button>
               </div>
             </>
           ) : (
@@ -423,7 +457,71 @@ export default function GuichePage() {
           )}
         </div>
 
-        {/* ── Recent history ────────────────────────────────────────────── */}
+        {/* ── Queue status panel (US-07) ───────────────────────────────────────── */}
+        {queuePanel ? (
+          <div className={`rounded-3xl p-5 transition-colors ${
+            queuePanel.slaStatus === "critical"
+              ? (highContrast ? "bg-red-950 border-2 border-red-500" : "bg-red-50 border border-red-300")
+              : queuePanel.slaStatus === "warning"
+              ? (highContrast ? "bg-yellow-950 border-2 border-yellow-500" : "bg-yellow-50 border border-yellow-300")
+              : (highContrast ? "bg-gray-900 border-2 border-gray-800" : "bg-white shadow-sm")
+          }`}>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className={`text-xs font-bold uppercase tracking-widest ${
+                highContrast ? "text-gray-500" : "text-gray-400"
+              }`}>Fila: {queuePanel.queueName}</h2>
+              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                queuePanel.slaStatus === "critical"
+                  ? "bg-red-500 text-white"
+                  : queuePanel.slaStatus === "warning"
+                  ? "bg-yellow-500 text-white"
+                  : "bg-green-500 text-white"
+              }`}>
+                {queuePanel.slaStatus === "critical" ? "🔴 SLA Crítico"
+                  : queuePanel.slaStatus === "warning" ? "🟡 Em Alerta"
+                  : "🟢 SLA OK"}
+              </span>
+            </div>
+            <div className="grid grid-cols-3 gap-3 text-center">
+              <div>
+                <p className={`text-2xl font-bold ${
+                  queuePanel.waitingCount === 0
+                    ? (highContrast ? "text-gray-500" : "text-gray-400")
+                    : (highContrast ? "text-white" : "text-gray-800")
+                }`}>{queuePanel.waitingCount}</p>
+                <p className={`text-xs ${
+                  highContrast ? "text-gray-500" : "text-gray-400"
+                }`}>Aguardando</p>
+              </div>
+              <div>
+                <p className={`text-2xl font-bold ${highContrast ? "text-yellow-400" : "text-yellow-600"}`}>
+                  {queuePanel.priorityCount}
+                </p>
+                <p className={`text-xs ${highContrast ? "text-gray-500" : "text-gray-400"}`}>Prioritários</p>
+              </div>
+              <div>
+                <p className={`text-2xl font-bold ${highContrast ? "text-white" : "text-gray-800"}`}>
+                  {queuePanel.waitingCount === 0 ? "—" : `~${queuePanel.estimatedWaitMinutes} min`}
+                </p>
+                <p className={`text-xs ${highContrast ? "text-gray-500" : "text-gray-400"}`}>Estimativa</p>
+              </div>
+            </div>
+            {queuePanel.waitingCount === 0 && (
+              <p className={`text-center text-sm font-medium mt-3 ${
+                highContrast ? "text-gray-600" : "text-gray-400"
+              }`}>Fila vazia</p>
+            )}
+          </div>
+        ) : desk && (
+          <div className={`rounded-3xl p-4 text-center ${
+            highContrast ? "bg-gray-900 border border-gray-800" : "bg-white shadow-sm"
+          }`}>
+            <p className={`text-sm ${highContrast ? "text-gray-600" : "text-gray-400"}`}>
+              Fila vazia
+            </p>
+          </div>
+        )}
+
         {recentTickets && recentTickets.length > 0 && (
           <div className={`rounded-3xl p-6 transition-colors ${highContrast ? "bg-gray-900 border-2 border-gray-800" : "bg-white shadow-lg"}`}>
             <h2 className={`text-xs font-bold uppercase tracking-widest mb-4 ${highContrast ? "text-gray-500" : "text-gray-400"}`}>
@@ -552,6 +650,103 @@ export default function GuichePage() {
                 }`}
               >
                 {reintegrateMut.isPending ? "Reintegrando…" : "Confirmar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Transfer modal (US-06) ─────────────────────────────────────────── */}
+      {showTransferModal && currentTicket && (
+        <div
+          className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50"
+          onClick={(e) => { if (e.target === e.currentTarget) setShowTransferModal(false) }}
+        >
+          <div className={`rounded-3xl p-8 w-full max-w-md shadow-2xl ${highContrast ? "bg-gray-900 border-2 border-purple-400" : "bg-white"}`}>
+            <h2 className={`text-xl font-bold mb-1 ${highContrast ? "text-white" : "text-gray-800"}`}>
+              Transferir Ticket {currentTicket.code}
+            </h2>
+            <p className={`text-sm mb-6 ${highContrast ? "text-gray-400" : "text-gray-500"}`}>
+              Selecione a fila de destino. O cidadão será posicionado conforme o horário original da senha.
+            </p>
+
+            {/* Queue list */}
+            <div className="space-y-2 mb-6 max-h-48 overflow-y-auto">
+              {allQueues?.filter(q => q.id !== currentTicket.queueId).map((q) => (
+                <button
+                  key={q.id}
+                  onClick={() => setSelectedQueueId(q.id)}
+                  className={`w-full py-3 px-4 rounded-xl border-2 text-left text-sm font-semibold transition-all ${
+                    selectedQueueId === q.id
+                      ? (highContrast ? "border-purple-400 bg-purple-950 text-white" : "border-purple-500 bg-purple-50 text-purple-700")
+                      : (highContrast ? "border-gray-700 text-gray-300 hover:border-gray-500" : "border-gray-100 text-gray-600 hover:border-gray-300")
+                  }`}
+                >
+                  {q.name}
+                </button>
+              ))}
+              {allQueues && allQueues.filter(q => q.id !== currentTicket.queueId).length === 0 && (
+                <p className={`text-center py-4 text-sm ${highContrast ? "text-gray-500" : "text-gray-400"}`}>
+                  Não há outras filas disponíveis.
+                </p>
+              )}
+            </div>
+
+            {/* Queue info (when selected) */}
+            {selectedQueueId && targetQueueInfo && (
+              <div className={`rounded-xl p-4 mb-6 text-sm space-y-1 ${highContrast ? "bg-black border border-gray-800" : "bg-gray-50 border border-gray-100"}`}>
+                <div className="flex justify-between">
+                  <span className={highContrast ? "text-gray-400" : "text-gray-500"}>Aguardando:</span>
+                  <span className={`font-bold ${highContrast ? "text-white" : "text-gray-700"}`}>{targetQueueInfo.waitingCount} pessoas</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className={highContrast ? "text-gray-400" : "text-gray-500"}>Tempo estimado:</span>
+                  <span className={`font-bold ${highContrast ? "text-white" : "text-gray-700"}`}>{targetQueueInfo.estimatedWaitMinutes} min</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className={highContrast ? "text-gray-400" : "text-gray-500"}>Guichês ativos:</span>
+                  <span className={`font-bold ${highContrast ? "text-white" : "text-gray-700"}`}>{targetQueueInfo.activeDesks}</span>
+                </div>
+
+                {/* Long wait warning (CA 2 — US-06) */}
+                {targetQueueInfo.estimatedWaitMinutes > 60 && (
+                  <div className="mt-3 rounded-lg bg-orange-500/10 border border-orange-400 px-3 py-2 text-xs text-orange-600 font-medium">
+                    ⚠️ A fila <strong>{targetQueueInfo.queueName}</strong> possui {targetQueueInfo.waitingCount} pessoas na espera. Estimativa: {targetQueueInfo.estimatedWaitMinutes} min.
+                  </div>
+                )}
+
+                {/* No active desks warning (CA 5 — US-06) */}
+                {targetQueueInfo.activeDesks === 0 && (
+                  <div className="mt-3 rounded-lg bg-red-500/10 border border-red-400 px-3 py-2 text-xs text-red-600 font-medium">
+                    🚫 A fila <strong>{targetQueueInfo.queueName}</strong> não possui atendentes ativos agora. O ticket ficará aguardando até que um guichê seja ativado.
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Error message */}
+            {transferError && (
+              <p className="text-red-500 text-sm mb-4 font-medium">{transferError}</p>
+            )}
+
+            {/* Action buttons */}
+            <div className="flex gap-4">
+              <button
+                onClick={() => { setShowTransferModal(false); setSelectedQueueId(null) }}
+                className={`flex-1 py-3 border-2 rounded-xl font-bold transition-colors ${
+                  highContrast ? "border-gray-700 text-gray-400 hover:border-white hover:text-white" : "border-gray-200 text-gray-400 hover:border-gray-300"
+                }`}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => void handleTransfer()}
+                disabled={!selectedQueueId || transferMut.isPending}
+                className={`flex-1 py-3 rounded-xl font-bold transition-all disabled:opacity-50 ${
+                  highContrast ? "bg-purple-600 text-white hover:bg-purple-500" : "bg-purple-600 text-white hover:bg-purple-700"
+                }`}
+              >
+                {transferMut.isPending ? "Transferindo…" : "Confirmar Transferência"}
               </button>
             </div>
           </div>

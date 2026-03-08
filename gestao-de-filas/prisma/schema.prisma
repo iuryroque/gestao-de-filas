@@ -82,10 +82,12 @@ model Queue {
     id        String   @id @default(cuid())
     name      String   @unique
     isActive  Boolean  @default(true)
-    tma       Int      @default(5) // average service time in minutes
+    tma       Int      @default(5)  // average service time in minutes
+    sla       Int      @default(30) // SLA limit in minutes (default 30 min)
     createdAt DateTime @default(now())
-    tickets   Ticket[]
-    desks     Desk[]
+    tickets      Ticket[]
+    desks        Desk[]
+    slaBreaches  SlaBreachLog[]
 
     @@index([name])
 }
@@ -106,21 +108,24 @@ model Desk {
 }
 
 model Ticket {
-    id          String    @id @default(cuid())
-    code        String    @default("") // display code: "P-0042" (priority) or "0042" (regular)
-    number      Int
-    queueId     String
-    deskId      String?
-    userId      String?
-    status      String    @default("waiting") // waiting | calling | awaiting_recall | done | no_show
-    isPriority  Boolean   @default(false)
-    priority    Int       @default(0)
-    service     String?
-    noShowCount Int       @default(0)
-    tma         Int?      // Tempo de Atendimento em segundos (calledAt → finishedAt)
-    createdAt   DateTime  @default(now())
-    calledAt    DateTime?
-    finishedAt  DateTime?
+    id                String    @id @default(cuid())
+    code              String    @default("") // display code: "P-0042" (priority) or "0042" (regular)
+    number            Int
+    queueId           String
+    deskId            String?
+    userId            String?
+    status            String    @default("waiting") // waiting | calling | awaiting_recall | done | no_show | transferred
+    isPriority        Boolean   @default(false)
+    priority          Int       @default(0)
+    service           String?
+    noShowCount       Int       @default(0)
+    tma               Int?      // Tempo de Atendimento em segundos (calledAt → finishedAt)
+    transferredFromId String?   // ID do ticket original (quando este ticket foi gerado por transferência)
+    transferredToId   String?   // ID do ticket gerado na fila destino (quando este ticket foi transferido)
+    transferCount     Int       @default(0) // Número de transferências já realizadas (máx 2)
+    createdAt         DateTime  @default(now())
+    calledAt          DateTime?
+    finishedAt        DateTime?
 
     queue Queue      @relation(fields: [queueId], references: [id])
     desk  Desk?      @relation(fields: [deskId], references: [id])
@@ -146,4 +151,18 @@ model TicketLog {
 
     @@index([ticketId])
     @@index([actorId])
+}
+
+/// Persisted record of a SLA breach event (TME >= sla limit)
+model SlaBreachLog {
+    id         String   @id @default(cuid())
+    queueId    String
+    tmeMinutes Float    // TME (min) at the moment of breach
+    slaLimit   Int      // configured SLA limit for the queue at breach time
+    createdAt  DateTime @default(now())
+
+    queue Queue @relation(fields: [queueId], references: [id], onDelete: Cascade)
+
+    @@index([queueId])
+    @@index([createdAt])
 }
