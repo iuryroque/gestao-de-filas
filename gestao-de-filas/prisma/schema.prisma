@@ -148,7 +148,6 @@ model Ticket {
     desk  Desk?      @relation(fields: [deskId], references: [id])
     user  User?      @relation(fields: [userId], references: [id])
     logs  TicketLog[]
-    smsMessages SmsMessage[]
 
     @@index([queueId, number])
     @@index([queueId, isPriority, status])
@@ -171,6 +170,25 @@ model TicketLog {
     @@index([actorId])
 }
 
+/// US-11: CSAT/NPS response — one per ticket, linked to desk and service
+model CsatResponse {
+    id        String   @id @default(cuid())
+    ticketId  String   @unique  // deduplication: one response per ticket
+    deskId    String?           // attendant desk (for CSAT-per-attendant stats)
+    queueId   String?           // queue served (for NPS per service)
+    service   String?           // service name at time of attendance
+    rating    Int?              // 1-5 (null when skipped)
+    comment   String?           // optional free text
+    flagged   Boolean  @default(false)  // offensive content — requires manager review
+    skipped   Boolean  @default(false)  // citizen skipped or timed out
+    createdAt DateTime @default(now())
+
+    @@index([deskId])
+    @@index([queueId, service])
+    @@index([createdAt])
+    @@index([flagged])
+}
+
 /// Persisted record of a SLA breach event (TME >= sla limit)
 model SlaBreachLog {
     id         String   @id @default(cuid())
@@ -183,18 +201,4 @@ model SlaBreachLog {
 
     @@index([queueId])
     @@index([createdAt])
-}
-
-/// SMS messages queued/sent by the system (US-02 sandbox)
-model SmsMessage {
-    id        String   @id @default(cuid())
-    ticketId  String
-    phone     String
-    provider  String?  // e.g. twilio, mock
-    status    String   @default("queued") // queued | sent | failed
-    createdAt DateTime @default(now())
-
-    ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
-
-    @@index([ticketId])
 }

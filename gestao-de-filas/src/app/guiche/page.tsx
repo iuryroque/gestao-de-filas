@@ -7,6 +7,11 @@ import { ThemeToggle } from "../_components/ThemeToggle"
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type Step = "select_desk" | "main"
+
+interface CsatPrompt {
+  ticketId: string
+  code: string
+}
 type Role = "attendant" | "supervisor" | "admin"
 
 interface DeskInfo {
@@ -47,6 +52,7 @@ export default function GuichePage() {
   const [showTransferModal, setShowTransferModal] = useState(false)
   const [selectedQueueId, setSelectedQueueId]     = useState<string | null>(null)
   const [transferError, setTransferError]         = useState<string | null>(null)
+  const [csatPrompt, setCsatPrompt]               = useState<CsatPrompt | null>(null)
   const timeoutRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const { highContrast } = useTheme()
 
@@ -154,6 +160,7 @@ export default function GuichePage() {
   async function handleFinish() {
     if (!currentTicket) return
     await finishMut.mutateAsync({ ticketId: currentTicket.id })
+    setCsatPrompt({ ticketId: currentTicket.id, code: currentTicket.code })
     refreshAll()
   }
 
@@ -749,6 +756,35 @@ export default function GuichePage() {
                 {transferMut.isPending ? "Transferindo…" : "Confirmar Transferência"}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── CSAT Prompt modal (US-11) ──────────────────────────────────────── */}
+      {csatPrompt && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
+          <div className={`rounded-3xl p-8 w-full max-w-sm shadow-2xl text-center ${highContrast ? "bg-gray-900 border-2 border-green-400" : "bg-white"}`}>
+            <div className="text-5xl mb-3">⭐</div>
+            <h2 className={`text-xl font-bold mb-2 ${highContrast ? "text-white" : "text-gray-800"}`}>
+              Avaliação de Atendimento
+            </h2>
+            <p className={`text-sm mb-4 ${highContrast ? "text-gray-300" : "text-gray-500"}`}>
+              Ticket <strong>{csatPrompt.code}</strong> finalizado. Direcione o cidadão ao link ou QR Code abaixo para avaliar o atendimento.
+            </p>
+            <div className={`rounded-xl p-4 mb-5 font-mono text-sm break-all select-all ${highContrast ? "bg-black text-green-400 border border-green-700" : "bg-gray-50 text-blue-700 border border-gray-200"}`}>
+              {`/csat/${csatPrompt.ticketId}`}
+            </div>
+            <p className={`text-xs mb-5 ${highContrast ? "text-gray-500" : "text-gray-400"}`}>
+              A avaliação é opcional e pode ser pulada pelo cidadão em 30 segundos.
+            </p>
+            <button
+              onClick={() => setCsatPrompt(null)}
+              className={`w-full py-3 rounded-xl font-bold transition-all ${
+                highContrast ? "bg-white text-black hover:bg-gray-200" : "bg-green-600 text-white hover:bg-green-700"
+              }`}
+            >
+              Fechar e Continuar
+            </button>
           </div>
         </div>
       )}
