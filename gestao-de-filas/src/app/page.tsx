@@ -102,6 +102,21 @@ export default function Home() {
               Relatórios de atendimento, SLA e desempenho de atendentes.
             </div>
           </Link>
+
+          <Link
+            className={`flex flex-col gap-4 rounded-2xl p-8 border-2 transition-all hover:scale-105 ${
+              highContrast 
+                ? "bg-slate-800 border-slate-700 hover:border-white" 
+                : "bg-white border-transparent shadow-xl hover:shadow-2xl"
+            }`}
+            href="/recursos"
+          >
+            <div className="text-4xl">🗄</div>
+            <h3 className="text-2xl font-bold">Recursos →</h3>
+            <div className={`text-lg ${highContrast ? "text-slate-400" : "text-slate-600"}`}>
+              Painel de controle para abrir, fechar e realocar guichês.
+            </div>
+          </Link>
         </div>
 
         <div className={`mt-8 text-sm ${highContrast ? "text-slate-600" : "text-slate-400"}`}>
