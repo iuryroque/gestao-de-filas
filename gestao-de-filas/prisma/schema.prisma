@@ -101,10 +101,27 @@ model Desk {
     queueId     String?  // null = serves all queues
     createdAt   DateTime @default(now())
 
-    queue   Queue?   @relation(fields: [queueId], references: [id])
-    tickets Ticket[]
+    queue      Queue?         @relation(fields: [queueId], references: [id])
+    tickets    Ticket[]
+    stateLogs  DeskStateLog[]
 
     @@index([status])
+}
+
+/// Audit log for supervisor desk state changes (US-10)
+model DeskStateLog {
+    id        String   @id @default(cuid())
+    deskId    String
+    state     String   // active | paused | closed
+    reason    String?  // justification for state change
+    actorRole String?  // supervisor | admin | system
+    queueId   String?  // target queue when action is queue assignment
+    createdAt DateTime @default(now())
+
+    desk Desk @relation(fields: [deskId], references: [id], onDelete: Cascade)
+
+    @@index([deskId])
+    @@index([createdAt])
 }
 
 model Ticket {

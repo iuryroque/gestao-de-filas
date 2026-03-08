@@ -2,6 +2,7 @@ import { postRouter } from "~/server/api/routers/post";
 import { ticketRouter } from "~/server/api/routers/ticket";
 import { deskRouter } from "~/server/api/routers/desk";
 import { dashboardRouter } from "~/server/api/routers/dashboard";
+import { reportRouter } from "~/server/api/routers/report";
 import { createCallerFactory, createTRPCRouter } from "~/server/api/trpc";
 
 /**
@@ -14,6 +15,7 @@ export const appRouter = createTRPCRouter({
   ticket: ticketRouter,
   desk: deskRouter,
   dashboard: dashboardRouter,
+  report: reportRouter,
 });
 
 // export type definition of API
