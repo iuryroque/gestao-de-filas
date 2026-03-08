@@ -148,6 +148,7 @@ model Ticket {
     desk  Desk?      @relation(fields: [deskId], references: [id])
     user  User?      @relation(fields: [userId], references: [id])
     logs  TicketLog[]
+    smsMessages SmsMessage[]
 
     @@index([queueId, number])
     @@index([queueId, isPriority, status])
@@ -182,4 +183,18 @@ model SlaBreachLog {
 
     @@index([queueId])
     @@index([createdAt])
+}
+
+/// SMS messages queued/sent by the system (US-02 sandbox)
+model SmsMessage {
+    id        String   @id @default(cuid())
+    ticketId  String
+    phone     String
+    provider  String?  // e.g. twilio, mock
+    status    String   @default("queued") // queued | sent | failed
+    createdAt DateTime @default(now())
+
+    ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+    @@index([ticketId])
 }

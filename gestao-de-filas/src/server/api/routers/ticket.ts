@@ -524,4 +524,31 @@ export const ticketRouter = createTRPCRouter({
 
       return { original: { id: original.id, code: original.code }, newTicket };
     }),
+
+    /**
+     * US-02 (support): Queue SMS stub — save SMS request to DB (sandbox).
+     * Frontend can call this after ticket creation to send an SMS with a follow link.
+     */
+    sendSms: publicProcedure
+      .input(
+        z.object({ ticketId: z.string(), phone: z.string().min(8), provider: z.string().optional() }),
+      )
+      .mutation(async ({ ctx, input }) => {
+        const ticket = await ctx.db.ticket.findUnique({ where: { id: input.ticketId } });
+        if (!ticket) throw new TRPCError({ code: "NOT_FOUND", message: "Ticket não encontrado." });
+
+        const sms = await ctx.db.smsMessage.create({
+          data: {
+            ticketId: input.ticketId,
+            phone: input.phone,
+            provider: input.provider ?? "mock",
+            status: "queued",
+          },
+        });
+
+        // Audit log for traceability
+        await ctx.db.ticketLog.create({ data: { ticketId: input.ticketId, action: "sms_queued", note: `to:${input.phone}` } });
+
+        return { ok: true, id: sms.id };
+      }),
 });
