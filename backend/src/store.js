@@ -4,6 +4,7 @@ const client = (process.env.DB_CLIENT === 'pg') ? require('./db-pg') : require('
 module.exports = {
   createTicket: (...args) => client.createTicket(...args),
   getTicket: (...args) => client.getTicket(...args),
+  getTicketByNumber: (...args) => client.getTicketByNumber(...args),
   callTicket: (...args) => client.callTicket(...args),
   attendTicket: (...args) => client.attendTicket(...args),
   finalizeTicket: (...args) => client.finalizeTicket(...args),

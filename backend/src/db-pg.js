@@ -102,6 +102,13 @@ async function getTicket(id) {
   return _rowToTicket(r.rows[0]);
 }
 
+async function getTicketByNumber(number) {
+  const num = parseInt(number, 10);
+  if (isNaN(num)) return null;
+  const r = await pool.query('SELECT * FROM tickets WHERE number = $1 ORDER BY createdAt DESC LIMIT 1', [num]);
+  return _rowToTicket(r.rows[0]);
+}
+
 async function updateTicket(id, patch) {
   const t = await getTicket(id);
   if (!t) return null;
@@ -316,6 +323,7 @@ module.exports = {
   initSchema,
   createTicket,
   getTicket,
+  getTicketByNumber,
   callTicket,
   attendTicket,
   finalizeTicket,

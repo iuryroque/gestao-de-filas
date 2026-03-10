@@ -588,6 +588,9 @@
         showToast('Atendimento finalizado: ' + (currentTicket.number || currentTicket.id), 'success');
         addToHistory(currentTicket, 'finalized');
 
+        // Abre pagina de avaliacao CSAT com o UUID do ticket
+        window.open('csat.html?ticketId=' + encodeURIComponent(currentTicket.id), '_blank');
+
         currentTicket = null;
         codeEl.textContent = '—';
         svcEl.textContent='—';

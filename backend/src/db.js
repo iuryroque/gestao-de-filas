@@ -208,6 +208,13 @@ function getTicket(id) {
   return _rowToTicket(row);
 }
 
+function getTicketByNumber(number) {
+  const num = parseInt(number, 10);
+  if (isNaN(num)) return null;
+  const row = db.prepare('SELECT * FROM tickets WHERE number = ? ORDER BY createdAt DESC LIMIT 1').get(num);
+  return _rowToTicket(row);
+}
+
 function updateTicket(id, patch) {
   const t = getTicket(id);
   if (!t) return null;
@@ -344,6 +351,7 @@ function getQueueStats(queueId) {
 module.exports = {
   createTicket,
   getTicket,
+  getTicketByNumber,
   callTicket,
   attendTicket,
   finalizeTicket,

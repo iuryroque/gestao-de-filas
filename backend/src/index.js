@@ -140,7 +140,8 @@ app.post('/tickets/:id/csat', async (req, res) => {
   const { id } = req.params;
   const { rating, comment, skipped, attendant, serviceId } = req.body;
 
-  const ticket = await store.getTicket(id);
+  let ticket = await store.getTicket(id);
+  if (!ticket) ticket = await store.getTicketByNumber(id);
   if (!ticket) return res.status(404).json({ error: 'ticket not found' });
 
   if (!skipped) {
@@ -150,7 +151,7 @@ app.post('/tickets/:id/csat', async (req, res) => {
   }
 
   try {
-    const csat = await store.submitCsat(id, { rating, comment, skipped: !!skipped, attendant, serviceId });
+    const csat = await store.submitCsat(ticket.id, { rating, comment, skipped: !!skipped, attendant, serviceId });
     if (!csat) return res.status(409).json({ error: 'CSAT already submitted for this ticket' });
     res.status(201).json(csat);
   } catch (err) {
