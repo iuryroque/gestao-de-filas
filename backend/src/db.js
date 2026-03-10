@@ -208,6 +208,13 @@ function getTicket(id) {
   return _rowToTicket(row);
 }
 
+function getTicketByNumber(number) {
+  const num = parseInt(number, 10);
+  if (isNaN(num)) return null;
+  const row = db.prepare('SELECT * FROM tickets WHERE number = ? ORDER BY createdAt DESC LIMIT 1').get(num);
+  return _rowToTicket(row);
+}
+
 function updateTicket(id, patch) {
   const t = getTicket(id);
   if (!t) return null;
@@ -307,7 +314,11 @@ function listTickets(filter = {}) {
     clauses.push('status = ?'); params.push(filter.status);
   }
   if (clauses.length) sql += ' WHERE ' + clauses.join(' AND ');
-  sql += ' ORDER BY number ASC';
+  if (filter.status === 'waiting') {
+    sql += " ORDER BY CASE WHEN json_extract(meta, '$.priority') = 1 THEN 0 ELSE 1 END, number ASC";
+  } else {
+    sql += ' ORDER BY number ASC';
+  }
   const rows = db.prepare(sql).all(...params);
   return rows.map(_rowToTicket);
 }
@@ -340,6 +351,7 @@ function getQueueStats(queueId) {
 module.exports = {
   createTicket,
   getTicket,
+  getTicketByNumber,
   callTicket,
   attendTicket,
   finalizeTicket,
