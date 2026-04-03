@@ -135,6 +135,20 @@ export const ticketRouter = createTRPCRouter({
     }),
 
   /**
+   * Returns waiting tickets for the Guichês view.
+   */
+  waitingTickets: publicProcedure
+    .input(z.object({ limit: z.number().int().min(1).max(50).default(20) }))
+    .query(async ({ ctx, input }) => {
+      return ctx.db.ticket.findMany({
+        where: { status: "waiting" },
+        orderBy: [{ isPriority: "desc" }, { createdAt: "asc" }],
+        take: input.limit,
+        include: { queue: { select: { name: true } } },
+      });
+    }),
+
+  /**
    * Returns waiting count per queue (for the desk status banner).
    */
   queueStats: publicProcedure.query(async ({ ctx }) => {

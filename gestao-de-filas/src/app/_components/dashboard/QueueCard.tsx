@@ -28,17 +28,17 @@ export function QueueCard({ card }: { card: QueueCardProps }) {
 
   // Color logic based on Tonal Layering
   const statusColorClass = isCritical
-    ? (highContrast ? "border-error text-white" : "border-error/10 bg-error-container/20 text-on-error-container")
+    ? (highContrast ? "border-error text-white" : "bg-error-container/30 text-on-error-container")
     : isWarning
-    ? (highContrast ? "border-warning text-white" : "border-warning-container text-on-warning-container")
-    : (highContrast ? "border-white bg-black" : "bg-surface-lowest shadow-ambient border-secondary/5");
+    ? (highContrast ? "border-warning text-white" : "bg-warning-container/50 text-on-warning-container")
+    : (highContrast ? "border-white bg-black" : "bg-surface-lowest shadow-ambient");
 
   return (
     <div
       onClick={() => setExpanded(!expanded)}
-      className={`rounded-[2rem] border transition-all cursor-pointer p-6 ${statusColorClass} ${
+      className={`rounded-[3rem] transition-all cursor-pointer p-8 ${statusColorClass} ${
         isCritical && !highContrast ? "shadow-lg shadow-error/10" : ""
-      } hover:scale-[1.01] active:scale-[0.99]`}
+      } hover:shadow-xl active:scale-[0.99]`}
     >
       {/* Header */}
       <div className="flex justify-between items-start mb-6">
@@ -107,7 +107,7 @@ export function QueueCard({ card }: { card: QueueCardProps }) {
       </div>
 
       {/* Footer Info */}
-      <div className="flex justify-between items-center mt-6 pt-4 border-t border-secondary/5">
+      <div className="flex justify-between items-center mt-6 pt-4">
         <span className={`text-[10px] font-body ${highContrast ? "text-white/30" : "text-secondary/40"}`}>
             {card.priorityCount > 0 ? `🟡 ${card.priorityCount} prioritários` : "Fila normal"}
         </span>

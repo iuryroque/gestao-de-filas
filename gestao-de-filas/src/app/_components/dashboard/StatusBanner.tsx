@@ -20,10 +20,10 @@ export function StatusBanner({ criticalCount, warningCount, totalQueues }: Statu
   return (
     <div className="flex gap-4 flex-wrap mb-10">
       {criticalCount > 0 && (
-        <div className={`flex items-center gap-4 px-6 py-4 rounded-2xl border transition-all animate-pulse shadow-lg ${
+        <div className={`flex items-center gap-4 px-8 py-6 rounded-[2.5rem] transition-all animate-pulse shadow-lg ${
           highContrast 
-            ? "bg-black border-error text-white" 
-            : "bg-error-container text-on-error-container border-error/10"
+            ? "bg-black border border-error text-white" 
+            : "bg-error-container/40 text-on-error-container"
         }`}>
           <AlertCircle className="w-6 h-6" />
           <div>
@@ -36,10 +36,10 @@ export function StatusBanner({ criticalCount, warningCount, totalQueues }: Statu
       )}
 
       {warningCount > 0 && (
-        <div className={`flex items-center gap-4 px-6 py-4 rounded-2xl border transition-all ${
+        <div className={`flex items-center gap-4 px-8 py-6 rounded-[2.5rem] transition-all ${
           highContrast 
-            ? "bg-black border-warning text-white" 
-            : "bg-warning-container text-on-warning-container border-warning/10"
+            ? "bg-black border border-warning text-white" 
+            : "bg-warning-container/60 text-on-warning-container shadow-sm"
         }`}>
           <AlertTriangle className="w-6 h-6" />
           <div>
@@ -52,10 +52,10 @@ export function StatusBanner({ criticalCount, warningCount, totalQueues }: Statu
       )}
 
       {isAllOk && (
-        <div className={`flex items-center gap-4 px-6 py-4 rounded-2xl border transition-all ${
+        <div className={`flex items-center gap-4 px-8 py-4 rounded-full transition-all ${
           highContrast 
-            ? "bg-black border-success text-white" 
-            : "bg-success-container/50 text-on-success-container border-success/10"
+            ? "bg-black border border-success text-white" 
+            : "bg-success-container/40 text-on-success-container shadow-sm"
         }`}>
           <CheckCircle2 className="w-6 h-6" />
           <div>

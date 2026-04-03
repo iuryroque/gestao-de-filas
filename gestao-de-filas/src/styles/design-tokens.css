@@ -1,16 +1,14 @@
 :root {
-  /* --- Colors (Based on Empathetic Authority) --- */
-  
-  /* Surfaces & Backgrounds */
-  --surface: 210 25% 98%;            /* #f7f9fb */
-  --surface-low: 210 15% 96%;        /* #f2f4f6 */
-  --surface-lowest: 0 0% 100%;       /* #ffffff */
-  --surface-bright: 210 25% 98%;     /* #f7f9fb */
+  /* Surfaces & Backgrounds (Tonal Layering) */
+  --surface: 210 25% 98%;            /* Base (#f7f9fb) */
+  --surface-low: 210 15% 96%;        /* Sections (#f2f4f6) */
+  --surface-lowest: 0 0% 100%;       /* Cards (#ffffff) */
+  --surface-bright: 210 25% 98%;     /* Active Overlays (#f7f9fb) */
   --surface-variant: 215 15% 92%;
   
-  /* Brand Colors */
-  --primary: 212 100% 22%;           /* #00346f */
-  --primary-container: 211 100% 30%; /* #004a99 */
+  /* Brand Colors (Guided Journey) */
+  --primary: 212 100% 22%;           /* #00346f (Stability) */
+  --primary-container: 211 100% 30%; /* #004a99 (Action) */
   --on-primary: 0 0% 100%;
   
   /* Secondary / Neutral */
@@ -19,8 +17,8 @@
   
   /* Semantic */
   --error: 0 84% 60%;
-  --error-container: 0 96% 94%;      /* #fee2e2 soft tonal red */
-  --on-error-container: 0 72% 35%;   /* #991b1b */
+  --error-container: 0 96% 94%;      /* soft tonal red */
+  --on-error-container: 0 72% 35%;
   
   --warning: 38 92% 50%;
   --warning-container: 48 96% 89%;
@@ -31,13 +29,15 @@
   --on-success-container: 153 60% 15%;
 
   /* --- Typography --- */
-  --font-display: 'Public Sans', var(--font-geist-sans), sans-serif;
-  --font-body: 'Inter', var(--font-geist-sans), sans-serif;
+  --font-display: 'Public Sans', sans-serif;
+  --font-body: 'Inter', sans-serif;
 
-  /* --- Elevation / Shadows --- */
-  /* Ambient Shadow: 24px blur, 4% opacity, tinted with primary */
+  /* --- Elevation & Effects --- */
+  /* Ambient Shadow: 24px blur, 4% opacity, tinted with primary (Empathy Rule) */
   --shadow-ambient: 0 12px 24px -12px hsla(212, 100%, 22%, 0.04);
+  /* Glassmorphism Rule: 20px blur for calling alerts */
   --shadow-glass: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
+  --blur-glass: 20px;
 }
 
 /* High Contrast Overrides */

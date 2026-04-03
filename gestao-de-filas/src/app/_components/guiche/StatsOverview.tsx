@@ -1,7 +1,8 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { useTheme } from "../ThemeContext";
+import { ChevronUp, ChevronDown, BarChart2 } from "lucide-react";
 
 interface StatItemProps {
   label: string;
@@ -38,18 +39,54 @@ function StatItem({ label, value, sublabel, color }: StatItemProps) {
   );
 }
 
-export function StatsOverview() {
+export function StatsOverview({
+    completed = 0,
+    tma = "--",
+    slaBreaches = 0
+}: {
+    completed?: number | string;
+    tma?: string;
+    slaBreaches?: number | string;
+}) {
   const { highContrast } = useTheme();
+  const [isExpanded, setIsExpanded] = useState(false);
 
   return (
-    <div className="flex gap-8 items-start">
-      {/* Performance Card */}
-      <div className={`p-8 rounded-[2rem] flex-1 flex flex-col transition-all ${
-        highContrast 
-          ? "bg-black border-2 border-white" 
-          : "bg-surface-lowest shadow-ambient border border-secondary/5"
-      }`}>
-        <div className="flex justify-between items-center mb-8">
+    <div className="flex flex-col gap-4 mt-auto">
+      {/* Accordion Toggle */}
+      <button 
+        onClick={() => setIsExpanded(!isExpanded)}
+        className={`w-full flex items-center justify-between p-4 rounded-3xl transition-all ${
+          highContrast 
+            ? "bg-black border-2 border-white hover:bg-white/10" 
+            : "bg-surface-lowest shadow-sm hover:shadow-md border border-primary/5"
+        }`}
+      >
+        <div className="flex items-center gap-3">
+          <div className={`p-2 rounded-xl ${highContrast ? "bg-white text-black" : "bg-primary/5 text-primary"}`}>
+            <BarChart2 className="w-5 h-5" />
+          </div>
+          <span className={`font-display font-black ${highContrast ? "text-white" : "text-primary"}`}>
+            Performance e Status
+          </span>
+        </div>
+        {isExpanded ? (
+           <ChevronDown className={highContrast ? "text-white" : "text-secondary"} />
+        ) : (
+           <ChevronUp className={highContrast ? "text-white" : "text-secondary"} />
+        )}
+      </button>
+
+      {/* Expanded Content */}
+      {isExpanded && (
+        <div className="flex gap-8 items-start animate-in slide-in-from-bottom-4 fade-in duration-300">
+          {/* Performance Card */}
+          <div className={`p-8 rounded-[3rem] flex-1 flex flex-col transition-all ${
+            highContrast 
+              ? "bg-black border-2 border-white" 
+              : "bg-surface-lowest shadow-ambient shadow-primary/5"
+          }`}>
+            <div className="flex justify-between items-center mb-6">
           <h2 className={`font-display font-black text-lg ${highContrast ? "text-white" : "text-primary"}`}>
             Sua Performance Hoje
           </h2>
@@ -61,17 +98,17 @@ export function StatsOverview() {
         </div>
         
         <div className="flex gap-12">
-          <StatItem label="Atendimentos Concluídos" value="24" />
-          <StatItem label="Tempo Médio (TMA)" value="08:12" />
-          <StatItem label="SLA Excedido" value="02" color="text-error" />
+          <StatItem label="Atendimentos Concluídos" value={completed} />
+          <StatItem label="Tempo Médio (TMA)" value={tma} />
+          <StatItem label="SLA Excedido" value={slaBreaches} color="text-error" />
         </div>
       </div>
 
       {/* Status Card */}
-      <div className={`p-8 rounded-[2rem] w-64 flex flex-col transition-all ${
+      <div className={`p-10 rounded-[3rem] w-72 flex flex-col transition-all ${
         highContrast 
           ? "bg-black border-2 border-white" 
-          : "bg-surface-lowest shadow-ambient border border-secondary/5"
+          : "bg-surface-lowest shadow-ambient shadow-primary/5"
       }`}>
         <h2 className={`font-display font-black text-lg mb-6 ${highContrast ? "text-white" : "text-primary"}`}>
           Status Atual
@@ -96,7 +133,9 @@ export function StatsOverview() {
                 </button>
             ))}
         </div>
+        </div>
       </div>
+      )}
     </div>
   );
 }

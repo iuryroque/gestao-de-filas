@@ -6,20 +6,24 @@ type ThemeContextType = {
   highContrast: boolean
   setHighContrast: (value: boolean) => void
   toggleHighContrast: () => void
+  sidebarCollapsed: boolean
+  setSidebarCollapsed: (value: boolean) => void
+  toggleSidebar: () => void
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined)
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [highContrast, setHighContrast] = useState(false)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [mounted, setMounted] = useState(false)
 
   // Load theme from localStorage on mount
   useEffect(() => {
-    const saved = localStorage.getItem("highContrast")
-    if (saved === "true") {
-      setHighContrast(true)
-    }
+    const savedTheme = localStorage.getItem("highContrast")
+    const savedSidebar = localStorage.getItem("sidebarCollapsed")
+    if (savedTheme === "true") setHighContrast(true)
+    if (savedSidebar === "true") setSidebarCollapsed(true)
     setMounted(true)
   }, [])
 
@@ -27,19 +31,27 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!mounted) return
     localStorage.setItem("highContrast", String(highContrast))
+    localStorage.setItem("sidebarCollapsed", String(sidebarCollapsed))
     
-    // We can also apply a global class to the body if we want to use traditional CSS
     if (highContrast) {
       document.documentElement.classList.add("dark")
     } else {
       document.documentElement.classList.remove("dark")
     }
-  }, [highContrast, mounted])
+  }, [highContrast, sidebarCollapsed, mounted])
 
   const toggleHighContrast = () => setHighContrast(!highContrast)
+  const toggleSidebar = () => setSidebarCollapsed(!sidebarCollapsed)
 
   return (
-    <ThemeContext.Provider value={{ highContrast, setHighContrast, toggleHighContrast }}>
+    <ThemeContext.Provider value={{ 
+      highContrast, 
+      setHighContrast, 
+      toggleHighContrast,
+      sidebarCollapsed,
+      setSidebarCollapsed,
+      toggleSidebar
+    }}>
       {children}
     </ThemeContext.Provider>
   )

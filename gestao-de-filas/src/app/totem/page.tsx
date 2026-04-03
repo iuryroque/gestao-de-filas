@@ -151,17 +151,17 @@ export default function TotemPage() {
     )
   }
 
-  // ── Theme helpers ──────────────────────────────────────────────────────────
-  const bg  = highContrast ? "bg-black text-white" : "bg-gray-50 text-gray-900"
+  // ─── Theme helpers ──────────────────────────────────────────────────────────
+  const bg  = highContrast ? "bg-black text-white" : "bg-surface text-primary"
   const card = highContrast
-    ? "border-2 border-white bg-gray-900 hover:bg-gray-800 active:bg-gray-700 transition-colors rounded-2xl"
-    : "border border-gray-200 bg-white hover:bg-blue-50 active:bg-blue-100 shadow transition-colors rounded-2xl"
+    ? "border-2 border-white bg-black hover:bg-white/10 active:bg-white/20 transition-all rounded-3xl"
+    : "bg-surface-lowest shadow-ambient hover:shadow-xl active:scale-[0.98] transition-all rounded-[2rem]"
   const btnPrimary = highContrast
-    ? "bg-white text-black hover:bg-gray-200 font-bold py-5 px-8 rounded-2xl text-2xl min-h-[64px] w-full transition-colors disabled:opacity-50"
-    : "bg-blue-600 text-white hover:bg-blue-700 font-bold py-5 px-8 rounded-2xl text-2xl min-h-[64px] w-full transition-colors disabled:opacity-50"
+    ? "bg-white text-black hover:bg-gray-200 font-black py-6 px-10 rounded-[2rem] text-2xl min-h-[80px] w-full transition-all disabled:opacity-50"
+    : "bg-primary text-on-primary shadow-ambient hover:brightness-110 active:scale-[0.98] font-black py-6 px-10 rounded-[2rem] text-2xl min-h-[80px] w-full transition-all disabled:opacity-50"
   const btnSecondary = highContrast
-    ? "bg-gray-800 text-white border border-white hover:bg-gray-700 font-semibold py-4 px-6 rounded-2xl text-xl min-h-[56px] w-full transition-colors"
-    : "bg-gray-100 text-gray-700 border border-gray-300 hover:bg-gray-200 font-semibold py-4 px-6 rounded-2xl text-xl min-h-[56px] w-full transition-colors"
+    ? "bg-black text-white border-2 border-white hover:bg-white/10 font-bold py-5 px-8 rounded-[2rem] text-xl min-h-[70px] w-full transition-all"
+    : "bg-surface-low text-primary hover:brightness-95 font-bold py-5 px-8 rounded-[2rem] text-xl min-h-[70px] w-full transition-all"
 
   const isPriority = priorityId !== null && priorityId !== "none"
   const priorityLabel = PRIORITY_GROUPS.find((g) => g.id === priorityId)?.label
@@ -175,11 +175,11 @@ export default function TotemPage() {
         <div className="absolute top-6 right-6">
           <ThemeToggle />
         </div>
-        <div className="text-center px-8 max-w-lg w-full flex flex-col gap-4">
-          <div className="text-8xl mb-2" aria-hidden="true">🏛️</div>
-          <h1 className="text-5xl font-black leading-tight">Atendimento Presencial</h1>
-          <p className={`text-2xl mb-6 ${highContrast ? "text-gray-300" : "text-gray-500"}`}>
-            Toque para emitir sua senha
+        <div className="text-center px-8 max-w-lg w-full flex flex-col gap-6">
+          <div className="text-9xl mb-4 animate-bounce" aria-hidden="true">🏛️</div>
+          <h1 className="text-6xl font-display font-black leading-[0.9] tracking-tighter">Atendimento <br/><span className="opacity-40">Presencial</span></h1>
+          <p className={`text-2xl font-body mt-2 mb-8 ${highContrast ? "text-white/60" : "text-secondary/60 italic"}`}>
+            Toque para iniciar sua jornada guiada.
           </p>
           <button
             className={btnPrimary}
@@ -198,7 +198,7 @@ export default function TotemPage() {
   // ══════════════════════════════════════════════════════════════════════════
   if (step === "category") {
     return (
-      <div className={`${bg} min-h-screen flex flex-col`} onClick={touch}>
+      <div className={`${bg} fixed inset-0 flex flex-col overflow-hidden`} onClick={touch}>
         <CountdownOverlay countdown={countdown} onContinue={touch} btnPrimary={btnPrimary} />
         <TotemHeader title="Selecione o serviço" onBack={resetToHome} highContrast={highContrast} />
         <div className="flex-1 p-6 max-w-3xl mx-auto w-full">
@@ -211,9 +211,9 @@ export default function TotemPage() {
                 onClick={() => handleServiceSelect(s)}
                 aria-label={s.name}
               >
-                <span className="text-4xl" aria-hidden="true">{s.icon}</span>
-                <span className="text-xl font-bold leading-tight">{s.name}</span>
-                <span className={`text-sm ${highContrast ? "text-gray-300" : "text-gray-500"}`}>{s.description}</span>
+                <span className="text-5xl mb-2" aria-hidden="true">{s.icon}</span>
+                <span className="text-2xl font-display font-black leading-tight tracking-tight">{s.name}</span>
+                <span className={`text-sm font-body ${highContrast ? "text-white/60" : "text-secondary/60"}`}>{s.description}</span>
               </button>
             ))}
           </div>
@@ -227,7 +227,7 @@ export default function TotemPage() {
   // ══════════════════════════════════════════════════════════════════════════
   if (step === "priority") {
     return (
-      <div className={`${bg} min-h-screen flex flex-col`} onClick={touch}>
+      <div className={`${bg} fixed inset-0 flex flex-col overflow-hidden`} onClick={touch}>
         <CountdownOverlay countdown={countdown} onContinue={touch} btnPrimary={btnPrimary} />
         <TotemHeader title="Atendimento preferencial?" onBack={() => setStep("category")} highContrast={highContrast} />
         <div className="flex-1 p-6 max-w-xl mx-auto w-full flex flex-col gap-4">
@@ -250,8 +250,8 @@ export default function TotemPage() {
             onClick={() => handlePrioritySelect("none")}
             aria-label="Atendimento regular, sem preferencial"
           >
-            <span className="text-2xl" aria-hidden="true">🚶</span>
-            <span className="text-xl font-semibold">Não — atendimento regular</span>
+            <span className="text-3xl" aria-hidden="true">🚶</span>
+            <span className="text-2xl font-display font-black tracking-tight leading-none pt-1">Não — atendimento regular</span>
           </button>
         </div>
       </div>
@@ -263,16 +263,16 @@ export default function TotemPage() {
   // ══════════════════════════════════════════════════════════════════════════
   if (step === "confirm") {
     return (
-      <div className={`${bg} min-h-screen flex flex-col`} onClick={touch}>
+      <div className={`${bg} fixed inset-0 flex flex-col overflow-hidden`} onClick={touch}>
         <CountdownOverlay countdown={countdown} onContinue={touch} btnPrimary={btnPrimary} />
         <TotemHeader title="Confirme seu atendimento" onBack={() => setStep("priority")} highContrast={highContrast} />
         <div className="flex-1 p-6 max-w-xl mx-auto w-full flex flex-col gap-6">
 
           {/* Service summary card */}
-          <div className={`${highContrast ? "bg-gray-900 border-2 border-white" : "bg-white border border-gray-200 shadow"} rounded-2xl p-6`}>
-            <div className="text-5xl mb-3" aria-hidden="true">{selectedService?.icon}</div>
-            <h2 className="text-3xl font-bold mb-1">{selectedService?.name}</h2>
-            <p className={`text-lg ${highContrast ? "text-gray-300" : "text-gray-500"}`}>{selectedService?.description}</p>
+          <div className={`${highContrast ? "bg-black border-2 border-white" : "bg-surface-lowest shadow-ambient"} rounded-[2.5rem] p-10`}>
+            <div className="text-7xl mb-6" aria-hidden="true">{selectedService?.icon}</div>
+            <h2 className="text-4xl font-display font-black tracking-tighter mb-2">{selectedService?.name}</h2>
+            <p className={`text-xl font-body ${highContrast ? "text-white/60" : "text-secondary/60"}`}>{selectedService?.description}</p>
 
             {/* Estimated wait */}
             {queueStatus && (
@@ -293,11 +293,12 @@ export default function TotemPage() {
             {/* Priority badge */}
             {isPriority && priorityLabel && (
               <div
-                className="mt-4 bg-amber-100 border border-amber-400 text-amber-900 rounded-xl px-4 py-3 text-lg font-bold"
+                className={`mt-8 ${highContrast ? "bg-white text-black" : "bg-warning-container/40 text-on-warning-container"} rounded-[2rem] px-8 py-6 transition-all`}
                 role="status"
               >
-                ⭐ ATENDIMENTO PREFERENCIAL
-                <div className="text-base font-normal mt-1">{priorityLabel}</div>
+                <div className="text-[10px] font-black uppercase tracking-[0.2em] mb-1">Status Atendimento</div>
+                <div className="text-2xl font-display font-black tracking-tight">⭐ PREFERENCIAL</div>
+                <div className="text-sm font-body opacity-70 mt-2">{priorityLabel}</div>
               </div>
             )}
           </div>
@@ -339,72 +340,82 @@ export default function TotemPage() {
     const timeStr = now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
 
     return (
-      <div className={`${bg} min-h-screen flex flex-col`}>
-        <div className="bg-blue-600 text-white text-center py-6">
-          <h1 className="text-4xl font-black">Senha Emitida com Sucesso!</h1>
+      <div className={`${bg} fixed inset-0 flex flex-col overflow-hidden`}>
+        {/* Banner sem bordas, Tonal Layering */}
+        <div className={`${highContrast ? "bg-white text-black" : "bg-primary text-on-primary"} text-center py-8 px-6 shadow-ambient`}>
+          <h1 className="text-4xl font-display font-black tracking-tighter uppercase italic">Senha Emitida com Sucesso!</h1>
         </div>
 
-        <div className="flex-1 p-6 max-w-xl mx-auto w-full flex flex-col gap-6">
+        <div className="flex-1 flex flex-col items-center justify-center p-8 max-w-4xl mx-auto w-full gap-8">
+          
+          <div className="flex flex-col lg:flex-row items-center gap-10 w-full">
+            {/* Main ticket card — Authority Rule: Massive Display */}
+            <div
+              className={`${highContrast ? "bg-black border-4 border-white" : "bg-surface-lowest shadow-ambient"} rounded-[4rem] p-16 flex-1 text-center relative overflow-hidden`}
+              aria-live="polite"
+              role="status"
+            >
+              {/* Background watermark for premium feel */}
+              {!highContrast && <div className="absolute top-0 right-0 text-[15rem] font-black text-primary/5 select-none -translate-y-1/4 translate-x-1/4 italic">{ticket.code.charAt(0)}</div>}
 
-          {/* Main ticket card */}
-          <div
-            className={`${highContrast ? "bg-gray-900 border-2 border-white" : "bg-white border border-gray-200 shadow-lg"} rounded-2xl p-8 text-center`}
-            aria-live="polite"
-            role="status"
-          >
-            {ticket.isPriority && (
-              <div className="bg-amber-100 border border-amber-400 text-amber-900 rounded-xl px-4 py-2 text-lg font-bold mb-4 inline-block">
-                ⭐ ATENDIMENTO PREFERENCIAL
-              </div>
-            )}
-
-            {/* Ticket code — large display */}
-            <div className="text-8xl font-black tracking-widest text-blue-600 my-4" aria-label={`Senha ${ticket.code}`}>
-              {ticket.code}
-            </div>
-
-            <p className="text-2xl font-semibold mb-1">{ticket.service}</p>
-
-            {/* Stats row */}
-            <div className={`flex justify-center gap-10 mt-6 ${highContrast ? "text-gray-200" : "text-gray-600"}`}>
-              <div className="text-center">
-                <div className="text-4xl font-black text-gray-800">{String(ticket.position)}</div>
-                <div className="text-sm mt-1">Na fila</div>
-              </div>
-              <div className="text-center">
-                <div className="text-4xl font-black text-gray-800">
-                  {ticket.estimatedWait === 0 ? "—" : `~${String(ticket.estimatedWait)}`}
+              {ticket.isPriority && (
+                <div className={`${highContrast ? "bg-white text-black" : "bg-warning-container/30 text-on-warning-container border border-warning-container/20"} rounded-full px-8 py-2 text-xs font-black uppercase tracking-[0.2em] mb-6 inline-block`}>
+                  ⭐ ATENDIMENTO PREFERENCIAL
                 </div>
-                <div className="text-sm mt-1">{ticket.estimatedWait === 0 ? "Imediato" : "Min espera"}</div>
+              )}
+
+              {/* Ticket code — Authority Scale */}
+              <div className={`text-[10rem] font-display font-black tracking-tighter leading-none mb-4 ${highContrast ? "text-white" : "text-primary"}`} aria-label={`Senha ${ticket.code}`}>
+                {ticket.code}
+              </div>
+
+              <p className={`text-2xl font-body font-bold mb-10 ${highContrast ? "text-white/60" : "text-secondary/60"}`}>{ticket.service}</p>
+
+              {/* Stats row with Tonal Layering */}
+              <div className="flex justify-center gap-20">
+                <div className="text-center group">
+                  <div className={`text-6xl font-display font-black ${highContrast ? "text-white" : "text-primary"}`}>{String(ticket.position)}</div>
+                  <div className="text-[10px] font-black uppercase tracking-[0.3em] opacity-30 mt-2">Posição na Fila</div>
+                </div>
+                <div className="text-center">
+                  <div className={`text-6xl font-display font-black ${highContrast ? "text-white" : "text-primary"}`}>
+                    {ticket.estimatedWait === 0 ? "—" : `~${String(ticket.estimatedWait)}'`}
+                  </div>
+                  <div className="text-[10px] font-black uppercase tracking-[0.3em] opacity-30 mt-2">{ticket.estimatedWait === 0 ? "Atendimento Imediato" : "Minutos de Espera"}</div>
+                </div>
+              </div>
+
+              <div className={`absolute bottom-8 left-0 right-0 text-[10px] font-black uppercase tracking-widest opacity-20 ${highContrast ? "text-white" : "text-primary"}`}>
+                {dateStr} — {timeStr}
               </div>
             </div>
 
-            <p className={`text-sm mt-6 ${highContrast ? "text-gray-400" : "text-gray-400"}`}>
-              {dateStr} às {timeStr}
-            </p>
-          </div>
+            {/* Actions Sidebar */}
+            <div className="w-full lg:w-80 flex flex-col gap-4">
+              <button
+                className={`${btnSecondary} !bg-surface-low/50 backdrop-blur-md border border-white/10 flex items-center justify-center gap-3`}
+                onClick={() => window.print()}
+                aria-label="Imprimir comprovante"
+              >
+                <span>🖨️</span>
+                <span>Imprimir Ticket</span>
+              </button>
+              
+              <button
+                className={`${btnPrimary} flex items-center justify-center gap-3 mt-4 h-32 text-3xl`}
+                onClick={resetToHome}
+                aria-label="Voltar ao início para nova senha"
+              >
+                Nova senha
+              </button>
 
-          {/* Actions */}
-          <div className="flex flex-col gap-3">
-            <button
-              className={btnSecondary}
-              onClick={() => window.print()}
-              aria-label="Imprimir comprovante"
-            >
-              🖨️ Imprimir comprovante
-            </button>
-            <button
-              className={btnPrimary}
-              onClick={resetToHome}
-              aria-label="Voltar ao início para nova senha"
-            >
-              Nova senha
-            </button>
+              <div className={`mt-6 text-center p-6 rounded-3xl ${highContrast ? "border border-white/10" : "bg-primary/5"}`}>
+                 <p className={`text-xs font-bold leading-relaxed ${highContrast ? "text-white/40" : "text-secondary/60"}`}>
+                   Acompanhe as chamadas <br/>no painel eletrônico principal.
+                 </p>
+              </div>
+            </div>
           </div>
-
-          <p className={`text-center text-xl ${highContrast ? "text-gray-300" : "text-gray-500"}`}>
-            Aguarde ser chamado no painel de atendimento.
-          </p>
         </div>
       </div>
     )
@@ -425,8 +436,8 @@ function TotemHeader({
   highContrast: boolean
 }) {
   const cls = highContrast
-    ? "bg-gray-900 border-b border-gray-700"
-    : "bg-white border-b border-gray-200 shadow-sm"
+    ? "bg-black border-b border-white"
+    : "bg-surface-lowest/80 backdrop-blur-md"
 
   return (
     <div className={`${cls} px-6 py-4 flex items-center gap-4`}>
@@ -456,19 +467,21 @@ function CountdownOverlay({
 
   return (
     <div
-      className="fixed inset-0 bg-black/70 flex items-center justify-center z-50"
+      className="fixed inset-0 bg-primary/20 backdrop-blur-xl flex items-center justify-center z-50 transition-all p-6"
       role="alertdialog"
       aria-modal="true"
       aria-label="Sessão inativa"
     >
-      <div className="bg-white rounded-2xl p-10 text-center max-w-sm mx-4 shadow-2xl">
-        <p className="text-2xl font-bold text-gray-800 mb-4">Sessão inativa</p>
-        <p className="text-8xl font-black text-red-600" aria-live="polite">{String(countdown)}</p>
-        <p className="text-lg text-gray-600 mt-4">
-          A tela retornará ao início em {String(countdown)} segundo{countdown !== 1 ? "s" : ""}.
-        </p>
-        <button onClick={onContinue} className={`${btnPrimary} mt-6`}>
-          Continuar
+      <div className="bg-surface-lowest/90 backdrop-blur-2xl rounded-[3rem] p-12 text-center max-w-md w-full shadow-2xl border border-white/20">
+        <div className="text-[10px] font-black uppercase tracking-[0.3em] text-secondary opacity-60 mb-6">Inatividade Detectada</div>
+        <p className="text-3xl font-display font-black text-primary leading-tight mb-8">Deseja continuar seu atendimento?</p>
+        <div className="relative inline-block mb-10 h-32 flex items-center justify-center">
+            <p className="text-9xl font-display font-black text-primary" aria-live="polite">
+                {String(countdown)}
+            </p>
+        </div>
+        <button onClick={onContinue} className={btnPrimary}>
+          Continuar Atendimento
         </button>
       </div>
     </div>

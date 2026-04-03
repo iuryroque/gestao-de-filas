@@ -1,5 +1,6 @@
 "use client"
 import React, { useCallback, useEffect, useRef, useState } from "react"
+import { CheckCircle2 } from "lucide-react"
 import { api } from "~/trpc/react"
 import { useTheme } from "../_components/ThemeContext"
 import { ThemeToggle } from "../_components/ThemeToggle"
@@ -117,12 +118,39 @@ export default function GuichePage() {
     { enabled: !!selectedQueueId },
   )
 
+  // Real Performance Metrics for StatsOverview
+  const today = new Date().toISOString()
+  const { data: performanceData } = api.report.attendantReport.useQuery(
+    { startDate: today, endDate: today, deskId: desk?.id },
+    { enabled: !!desk, refetchInterval: 10_000 }
+  )
+  const deskPerf = performanceData?.[0]
+
+  const { data: waitingData } = api.ticket.waitingTickets.useQuery(
+    { limit: 10 },
+    { enabled: !!desk, refetchInterval: 5_000 }
+  )
+  
+  const nextTickets = waitingData?.map(t => ({
+    id: t.id,
+    code: t.code,
+    service: t.queue.name,
+    time: new Date(t.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+    wait: waitTimeLabel(t.createdAt),
+    isCritical: t.isPriority
+  })) ?? []
+
   // ── Mutations ─────────────────────────────────────────────────────────────
   const createDeskMut    = api.desk.create.useMutation({ onSuccess: () => void refetchDesks() })
   const activateDeskMut  = api.desk.activate.useMutation()
   const pauseDeskMut     = api.desk.pause.useMutation()
   const resumeDeskMut    = api.desk.resume.useMutation()
-  const callNextMut      = api.ticket.callNext.useMutation()
+  const callNextMut      = api.ticket.callNext.useMutation({
+    onError: (err) => {
+      console.error("[tRPC Ticket.callNext Error]:", err.message, err.data);
+      setCallError(err.message);
+    }
+  })
   const finishMut        = api.ticket.finish.useMutation()
   const noShowMut        = api.ticket.noShow.useMutation()
   const recallMut        = api.ticket.recall.useMutation()
@@ -225,12 +253,12 @@ export default function GuichePage() {
   // ══════════════════════════════════════════════════════════════════════════
   if (step === "select_desk") {
     return (
-      <main className={`min-h-screen flex items-center justify-center p-6 transition-colors ${highContrast ? "bg-black" : "bg-gray-50"}`}>
-        <div className={`w-full max-w-md rounded-2xl shadow-lg p-8 transition-colors ${highContrast ? "bg-gray-900 border-2 border-white" : "bg-white"}`}>
-          <div className="flex justify-between items-start mb-6">
+      <main className={`min-h-screen flex items-center justify-center p-6 transition-colors ${highContrast ? "bg-black" : "bg-surface"}`}>
+        <div className={`w-full max-w-md rounded-[3rem] shadow-ambient p-10 transition-colors ${highContrast ? "bg-black border-2 border-white" : "bg-surface-lowest"}`}>
+          <div className="flex justify-between items-start mb-8">
             <div>
-              <h1 className={`text-2xl font-bold mb-1 ${highContrast ? "text-white" : "text-gray-800"}`}>Acesso ao Guichê</h1>
-              <p className={`text-sm ${highContrast ? "text-gray-400" : "text-gray-500"}`}>Selecione seu guichê para iniciar o atendimento</p>
+              <h1 className={`text-4xl font-display font-black tracking-tighter mb-2 ${highContrast ? "text-white" : "text-primary"}`}>Acesso ao Guichê</h1>
+              <p className={`text-sm font-body ${highContrast ? "text-white/40" : "text-secondary/60"}`}>Selecione seu posto para iniciar a jornada.</p>
             </div>
             <ThemeToggle />
           </div>
@@ -241,17 +269,17 @@ export default function GuichePage() {
               <button
                 key={d.id}
                 onClick={() => void handleSelectDesk(d)}
-                className={`w-full flex items-center justify-between p-4 border-2 rounded-xl transition-all ${
+                className={`w-full flex items-center justify-between p-5 rounded-2xl transition-all group ${
                   highContrast 
-                    ? "border-gray-700 hover:border-white hover:bg-gray-800 bg-black" 
-                    : "border-gray-200 hover:border-blue-500 hover:bg-blue-50"
+                    ? "border-2 border-white bg-black hover:bg-white/10" 
+                    : "bg-surface-low hover:bg-surface-variant/40"
                 }`}
               >
-                <span className={`font-semibold ${highContrast ? "text-white" : "text-gray-700"}`}>{d.name}</span>
-                <span className={`text-xs px-2 py-1 rounded-full font-medium ${
-                  d.status === "active"  ? "bg-green-100 text-green-700"  :
-                  d.status === "paused"  ? "bg-yellow-100 text-yellow-700" :
-                                           "bg-gray-100 text-gray-500"
+                <span className={`font-display font-black tracking-tight ${highContrast ? "text-white" : "text-primary"}`}>{d.name}</span>
+                <span className={`text-[10px] px-3 py-1 rounded-full font-black uppercase tracking-widest ${
+                  d.status === "active"  ? (highContrast ? "bg-white text-black" : "bg-success-container text-on-success-container") :
+                  d.status === "paused"  ? (highContrast ? "bg-white text-black" : "bg-warning-container text-on-warning-container") :
+                                           (highContrast ? "bg-white/10 text-white/50" : "bg-surface-lowest text-secondary/40")
                 }`}>
                   {d.status === "active" ? "Em uso" : d.status === "paused" ? "Em pausa" : "Disponível"}
                 </span>
@@ -263,8 +291,8 @@ export default function GuichePage() {
           </div>
 
           {/* Create new desk */}
-          <div className={`border-t pt-6 ${highContrast ? "border-gray-800" : "border-gray-100"}`}>
-            <p className={`text-sm mb-3 ${highContrast ? "text-gray-400" : "text-gray-500"}`}>Ou crie um novo guichê:</p>
+          <div className={`mt-8 pt-8 ${highContrast ? "border-t border-white/20" : "border-t border-secondary/5"}`}>
+            <p className={`text-[10px] font-black uppercase tracking-widest mb-4 ${highContrast ? "text-white/40" : "text-secondary/40"}`}>Ou crie um novo guichê:</p>
             <div className="flex gap-2">
               <input
                 type="text"
@@ -272,19 +300,19 @@ export default function GuichePage() {
                 onChange={(e) => setNewDeskName(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && void handleCreateDesk()}
                 placeholder="Ex: Guichê 01"
-                className={`flex-1 border-2 rounded-lg px-3 py-2 text-sm focus:outline-none transition-colors ${
+                className={`flex-1 rounded-xl px-4 py-3 text-sm font-body transition-all ${
                   highContrast
-                    ? "bg-black border-gray-700 text-white focus:border-white"
-                    : "bg-white border-gray-200 focus:border-blue-500"
+                    ? "bg-black border-2 border-white text-white focus:bg-white/10"
+                    : "bg-surface-low text-primary focus:bg-surface-variant/20 outline-none"
                 }`}
               />
               <button
                 onClick={() => void handleCreateDesk()}
                 disabled={!newDeskName.trim() || createDeskMut.isPending}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 ${
+                className={`px-6 py-3 rounded-xl text-sm font-black transition-all disabled:opacity-50 ${
                   highContrast
-                    ? "bg-white text-black hover:bg-gray-200 font-bold"
-                    : "bg-blue-600 text-white hover:bg-blue-700"
+                    ? "bg-white text-black hover:bg-gray-200"
+                    : "bg-primary text-on-primary shadow-sm hover:brightness-110"
                 }`}
               >
                 Criar
@@ -303,16 +331,31 @@ export default function GuichePage() {
   const hasOpenTicket   = !!currentTicket && ["calling", "awaiting_recall"].includes(currentTicket.status)
 
   return (
-    <div className={`min-h-screen flex transition-colors ${highContrast ? "bg-black" : "bg-surface"}`}>
+    <div className={`h-screen flex overflow-hidden transition-colors ${highContrast ? "bg-black" : "bg-surface"}`}>
       <Sidebar />
       
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header deskName={desk?.name} status={desk?.status} />
         
+        {/* Error Alert Banner */}
+        {callError && (
+          <div className={`px-10 py-4 flex items-center justify-between animate-in slide-in-from-top duration-300 ${
+            highContrast ? "bg-white text-black" : "bg-error-container text-on-error-container border-b border-error-container/20"
+          }`}>
+            <p className="text-sm font-black uppercase tracking-widest">{callError}</p>
+            <button 
+              onClick={() => setCallError(null)}
+              className={`p-2 rounded-lg font-black ${highContrast ? "hover:bg-black/10" : "hover:bg-on-error-container/10"}`}
+            >
+              FECHAR
+            </button>
+          </div>
+        )}
+        
         <div className="flex-1 flex overflow-hidden">
           {/* Main Content Area */}
-          <main className="flex-1 p-8 overflow-y-auto space-y-12">
-             <div className="flex justify-center">
+          <main className="flex-1 p-6 flex flex-col justify-between overflow-hidden">
+             <div className="flex justify-center flex-1 items-center min-h-0">
                 <CallingCard 
                   ticketCode={hasOpenTicket ? currentTicket!.code : null}
                   service={currentTicket?.service ?? undefined}
@@ -324,11 +367,15 @@ export default function GuichePage() {
                 />
              </div>
 
-             <StatsOverview />
+             <StatsOverview 
+                completed={deskPerf?.totalAttended ?? 0}
+                tma={deskPerf?.avgTma ? `${Math.floor(deskPerf.avgTma)}:${String(Math.round((deskPerf.avgTma % 1) * 60)).padStart(2, '0')}` : "--"}
+                slaBreaches={deskPerf?.noShowCount ?? 0}
+              />
           </main>
 
           {/* Right Panel */}
-          <NextTicketsList />
+          <NextTicketsList tickets={nextTickets} />
         </div>
       </div>
 
@@ -475,21 +522,32 @@ export default function GuichePage() {
       )}
 
       {csatPrompt && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
-          <div className={`rounded-3xl p-8 w-full max-w-sm shadow-2xl text-center ${highContrast ? "bg-gray-900 border-2 border-green-400" : "bg-white"}`}>
-            <h2 className={`text-xl font-bold mb-2 ${highContrast ? "text-white" : "text-gray-800"}`}>
-              Avaliação de Atendimento
+        <div className="fixed inset-0 bg-primary/20 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-in fade-in duration-300">
+          <div className={`rounded-[3rem] p-12 w-full max-w-sm shadow-ambient text-center transition-all ${
+            highContrast ? "bg-black border-4 border-white" : "bg-surface-lowest"
+          }`}>
+            <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-8 ${
+              highContrast ? "bg-white text-black" : "bg-success-container/30 text-success"
+            }`}>
+               <CheckCircle2 className="w-8 h-8" />
+            </div>
+            
+            <h2 className={`text-2xl font-display font-black mb-2 ${highContrast ? "text-white" : "text-primary"}`}>
+              Atendimento Finalizado
             </h2>
-            <p className={`text-sm mb-4 ${highContrast ? "text-gray-300" : "text-gray-500"}`}>
-              Ticket <strong>{csatPrompt.code}</strong> finalizado.
+            <p className={`text-sm font-body mb-10 ${highContrast ? "text-white/60" : "text-secondary/60"}`}>
+              Ticket <strong className={highContrast ? "text-white" : "text-primary"}>{csatPrompt.code}</strong> concluído com sucesso.
             </p>
+            
             <button
               onClick={() => setCsatPrompt(null)}
-              className={`w-full py-3 rounded-xl font-bold transition-all ${
-                highContrast ? "bg-white text-black hover:bg-gray-200" : "bg-green-600 text-white hover:bg-green-700"
+              className={`w-full py-5 rounded-2xl font-display font-black text-lg transition-all hover:scale-[1.03] active:scale-[0.97] shadow-ambient ${
+                highContrast 
+                  ? "bg-white text-black" 
+                  : "bg-primary text-on-primary shadow-primary/20"
               }`}
             >
-              Fechar e Continuar
+              Concluir Jornada
             </button>
           </div>
         </div>

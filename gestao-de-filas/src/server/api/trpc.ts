@@ -131,3 +131,46 @@ export const protectedProcedure = t.procedure
       },
     });
   });
+
+/**
+ * Grabs the user's Group and verifies if they hold a specific permission code.
+ * Example of usage: protectedProcedure.use(requirePermission("admin:access")).query(...)
+ */
+export const requirePermission = (permissionCode: string) => {
+  return t.middleware(async ({ ctx, next }) => {
+    if (!ctx.session?.user) {
+      throw new TRPCError({ code: "UNAUTHORIZED" });
+    }
+    
+    const userId = ctx.session.user.id;
+    const user = await ctx.db.user.findUnique({
+      where: { id: userId },
+      select: { groupId: true }
+    });
+
+    if (!user?.groupId) {
+      throw new TRPCError({ 
+        code: "UNAUTHORIZED", 
+        message: "Usuário não pertence a nenhum grupo de acesso." 
+      });
+    }
+
+    const hasPermission = await ctx.db.groupPermission.findFirst({
+      where: {
+        groupId: user.groupId,
+        permission: {
+          code: permissionCode
+        }
+      }
+    });
+
+    if (!hasPermission) {
+      throw new TRPCError({ 
+        code: "FORBIDDEN", 
+        message: `Permissão negada. Requer a permissão: ${permissionCode}` 
+      });
+    }
+
+    return next();
+  });
+};

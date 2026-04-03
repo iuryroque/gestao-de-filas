@@ -86,13 +86,13 @@ export default function PainelPage() {
   // RENDER
   // ═════════════════════════════════════════════════════════════════════════════
   return (
-    <div className={`min-h-screen flex flex-col select-none transition-colors ${highContrast ? "bg-slate-900 text-white" : "bg-gray-50 text-slate-900"}`}>
+    <div className={`min-h-screen flex flex-col select-none transition-colors ${highContrast ? "bg-black text-white" : "bg-surface text-primary"}`}>
 
       {/* ── Top bar ─────────────────────────────────────────────────────────── */}
-      <header className={`flex items-center justify-between px-8 py-4 border-b ${highContrast ? "bg-slate-800 border-slate-700" : "bg-white border-gray-200"}`}>
-        <div className="flex items-center gap-3">
-          <span className="text-3xl" aria-hidden="true">🏛️</span>
-          <span className="text-xl font-bold tracking-wide">Painel de Atendimento</span>
+      <header className={`flex items-center justify-between px-12 py-8 transition-all ${highContrast ? "bg-black border-b border-white" : "bg-surface-lowest/80 backdrop-blur-md"}`}>
+        <div className="flex items-center gap-4">
+          <span className="text-4xl" aria-hidden="true">🏛️</span>
+          <span className="text-2xl font-display font-black tracking-tighter">Atendimento Presencial</span>
         </div>
         <div className="flex items-center gap-4">
           <ThemeToggle />
@@ -119,10 +119,10 @@ export default function PainelPage() {
       <button
             id="painel-mute-btn"
             onClick={toggleMute}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold border-2 transition-colors ${
+            className={`flex items-center gap-3 px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-widest transition-all ${
               muted
-                ? (highContrast ? "border-yellow-400 bg-yellow-900/40 text-yellow-300" : "border-yellow-500 bg-yellow-50 text-yellow-700")
-                : (highContrast ? "border-slate-600 bg-slate-700 text-slate-300 hover:border-slate-400" : "border-gray-200 bg-gray-50 text-slate-600 hover:border-gray-300")
+                ? (highContrast ? "bg-white text-black" : "bg-warning-container text-on-warning-container shadow-sm")
+                : (highContrast ? "border-2 border-white text-white" : "bg-surface-low text-secondary/60 hover:bg-surface-variant/20")
             }`}
             aria-pressed={muted}
             aria-label={muted ? "Modo silencioso ativado — clique para ligar o som" : "Som ativado — clique para silenciar"}
@@ -152,13 +152,13 @@ export default function PainelPage() {
           </div>
         )}
 
-        {/* Current call — BIG display */}
+        {/* Current call — BIG display: Authority Rule */}
         {current && (
           <div
-            className={`w-full max-w-3xl rounded-3xl border-4 p-10 text-center shadow-2xl transition-all ${
+            className={`w-full max-w-5xl rounded-[4rem] p-16 text-center transition-all ${
               current.isPriority
-                ? "border-amber-400 bg-amber-950/60 shadow-amber-900/50"
-                : "border-blue-500 bg-blue-950/60 shadow-blue-900/50"
+                ? (highContrast ? "border-4 border-white bg-black" : "bg-warning-container/30 shadow-ambient shadow-warning/20")
+                : (highContrast ? "border-4 border-white bg-black" : "bg-surface-lowest shadow-ambient")
             }`}
             aria-live="polite"
             aria-atomic="true"
@@ -166,43 +166,39 @@ export default function PainelPage() {
           >
             {/* Priority badge */}
             {current.isPriority && (
-              <div className="inline-flex items-center gap-2 bg-amber-400 text-amber-950 font-black px-5 py-1.5 rounded-full text-lg mb-5 uppercase tracking-widest">
-                ⭐ Atendimento Preferencial
+              <div className={`inline-flex items-center gap-3 ${highContrast ? "bg-white text-black" : "bg-warning-container text-on-warning-container"} font-black px-8 py-3 rounded-full text-xl mb-10 uppercase tracking-[0.2em] shadow-sm`}>
+                ⭐ Preferencial
               </div>
             )}
 
             {/* Recall badge */}
             {current.noShowCount > 0 && (
-              <div className="inline-flex items-center gap-2 bg-orange-500 text-white font-bold px-4 py-1 rounded-full text-base mb-4 uppercase tracking-wide">
-                📢 Segunda Chamada
+              <div className={`inline-flex items-center gap-3 ${highContrast ? "bg-white text-black" : "bg-error-container text-on-error-container"} font-black px-6 py-2 rounded-full text-lg mb-8 uppercase tracking-widest animate-pulse`}>
+                📢 2ª Chamada
               </div>
             )}
 
             {/* Ticket code */}
             <div
-              className={`font-black tracking-widest leading-none mb-4 ${
-                current.isPriority ? "text-amber-300" : "text-blue-300"
+              className={`font-display font-black tracking-tighter leading-none mb-6 ${
+                current.isPriority ? (highContrast ? "text-white" : "text-primary") : (highContrast ? "text-white" : "text-primary")
               }`}
-              style={{ fontSize: "clamp(5rem, 15vw, 10rem)" }}
+              style={{ fontSize: "clamp(8rem, 25vw, 18rem)" }}
               aria-label={`Senha ${current.code}`}
             >
               {current.code}
             </div>
 
-            {/* Service */}
-            {current.service && (
-              <p className="text-2xl text-slate-300 font-medium mb-4">{current.service}</p>
-            )}
-
-            {/* Desk */}
-            <div className="flex items-center justify-center gap-3 mt-2">
-              <span className="text-5xl font-light text-slate-400">→</span>
-              <span
-                className="text-5xl font-black text-white"
-                aria-label={`Guichê ${current.desk?.name ?? ""}`}
-              >
-                {current.desk?.name ?? "—"}
-              </span>
+            {/* Service & Desk */}
+            <div className="flex flex-col gap-4 mt-8">
+                {current.service && (
+                  <p className={`text-3xl font-body font-medium ${highContrast ? "text-white/60" : "text-secondary/60 italic"}`}>{current.service}</p>
+                )}
+                <div className="flex items-center justify-center gap-6">
+                  <span className={`text-6xl font-display font-black ${highContrast ? "text-white" : "text-primary"}`}>
+                    {current.desk?.name ?? "—"}
+                  </span>
+                </div>
             </div>
           </div>
         )}
@@ -214,36 +210,33 @@ export default function PainelPage() {
               Últimas chamadas
             </h2>
             <div className="grid grid-cols-3 gap-3">
-              {recentHistory.map((call) => (
-                <div
-                  key={call.id}
-                  className={`rounded-2xl border p-4 text-center transition-colors ${
-                    call.isPriority
-                      ? (highContrast ? "border-amber-700/60 bg-amber-950/30" : "border-amber-200 bg-amber-50")
-                      : (highContrast ? "border-slate-700 bg-slate-800/60" : "border-gray-200 bg-white shadow-sm")
-                  }`}
-                >
-                  {call.isPriority && (
-                    <span className="text-xs text-amber-500 font-bold block mb-1">⭐ PREFERENCIAL</span>
-                  )}
-                  {call.noShowCount > 0 && (
-                    <span className="text-xs text-orange-500 font-semibold block mb-1">📢 2ª chamada</span>
-                  )}
-                  <div
-                    className={`text-3xl font-black mb-1 ${
-                      call.isPriority ? "text-amber-500" : (highContrast ? "text-slate-200" : "text-gray-700")
-                    }`}
-                  >
-                    {call.code}
-                  </div>
-                  <div className={`text-sm font-medium ${highContrast ? "text-slate-400" : "text-gray-500"}`}>
-                    {call.desk?.name ?? "—"}
-                  </div>
-                  <div className={`text-xs mt-1 ${highContrast ? "text-slate-600" : "text-gray-300"}`}>
-                    {timeSinceCalled(call.calledAt)}
-                  </div>
-                </div>
-              ))}
+                  {recentHistory.map((call) => (
+                    <div
+                      key={call.id}
+                      className={`rounded-[2.5rem] p-8 text-center transition-all ${
+                        call.isPriority
+                          ? (highContrast ? "border-2 border-white bg-black" : "bg-warning-container/20 shadow-ambient shadow-warning/5")
+                          : (highContrast ? "border-2 border-white bg-black" : "bg-surface-lowest shadow-ambient shadow-primary/5")
+                      }`}
+                    >
+                      {call.isPriority && (
+                        <span className={`text-[10px] font-black uppercase tracking-widest block mb-2 ${highContrast ? "text-white" : "text-warning"}`}>⭐ PREFERENCIAL</span>
+                      )}
+                      <div
+                        className={`text-5xl font-display font-black mb-1 ${
+                          highContrast ? "text-white" : "text-primary"
+                        }`}
+                      >
+                        {call.code}
+                      </div>
+                      <div className={`text-lg font-display font-black opacity-60 ${highContrast ? "text-white" : "text-primary"}`}>
+                        {call.desk?.name ?? "—"}
+                      </div>
+                      <div className={`text-[10px] uppercase font-black tracking-tighter mt-3 opacity-30 ${highContrast ? "text-white" : "text-primary"}`}>
+                        {timeSinceCalled(call.calledAt)}
+                      </div>
+                    </div>
+                  ))}
             </div>
           </section>
         )}

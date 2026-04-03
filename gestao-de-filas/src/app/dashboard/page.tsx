@@ -56,8 +56,8 @@ export default function DashboardPage() {
             </div>
 
             {/* Filter Pill */}
-            <div className={`flex p-1 rounded-2xl border transition-all ${
-              highContrast ? "bg-black border-white" : "bg-surface-low border-secondary/5"
+            <div className={`flex p-1 rounded-2xl transition-all ${
+              highContrast ? "bg-black border border-white" : "bg-surface-low"
             }`}>
               {(["all", "warning", "critical"] as FilterStatus[]).map((f) => (
                 <button
@@ -83,8 +83,8 @@ export default function DashboardPage() {
 
           {/* Cards Grid */}
           {cards.length === 0 ? (
-            <div className={`text-center py-32 rounded-[2.5rem] border-2 border-dashed ${
-              highContrast ? "border-white/20 text-white/40" : "border-secondary/10 text-secondary/30"
+            <div className={`text-center py-32 rounded-[2.5rem] ${
+              highContrast ? "border-2 border-dashed border-white/20 text-white/40" : "bg-surface-low text-secondary/30"
             }`}>
               <p className="text-3xl font-display font-black mb-2">Nenhuma fila operacional</p>
               <p className="text-sm font-body">As filas aparecerão aqui assim que tickets forem emitidos no totem.</p>
