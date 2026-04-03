@@ -1,0 +1,55 @@
+:root {
+  /* --- Colors (Based on Empathetic Authority) --- */
+  
+  /* Surfaces & Backgrounds */
+  --surface: 210 25% 98%;            /* #f7f9fb */
+  --surface-low: 210 15% 96%;        /* #f2f4f6 */
+  --surface-lowest: 0 0% 100%;       /* #ffffff */
+  --surface-bright: 210 25% 98%;     /* #f7f9fb */
+  --surface-variant: 215 15% 92%;
+  
+  /* Brand Colors */
+  --primary: 212 100% 22%;           /* #00346f */
+  --primary-container: 211 100% 30%; /* #004a99 */
+  --on-primary: 0 0% 100%;
+  
+  /* Secondary / Neutral */
+  --secondary: 215 16% 47%;
+  --on-secondary: 0 0% 100%;
+  
+  /* Semantic */
+  --error: 0 84% 60%;
+  --error-container: 0 96% 94%;      /* #fee2e2 soft tonal red */
+  --on-error-container: 0 72% 35%;   /* #991b1b */
+  
+  --warning: 38 92% 50%;
+  --warning-container: 48 96% 89%;
+  --on-warning-container: 28 85% 25%;
+  
+  --success: 142 71% 45%;
+  --success-container: 149 80% 90%;
+  --on-success-container: 153 60% 15%;
+
+  /* --- Typography --- */
+  --font-display: 'Public Sans', var(--font-geist-sans), sans-serif;
+  --font-body: 'Inter', var(--font-geist-sans), sans-serif;
+
+  /* --- Elevation / Shadows --- */
+  /* Ambient Shadow: 24px blur, 4% opacity, tinted with primary */
+  --shadow-ambient: 0 12px 24px -12px hsla(212, 100%, 22%, 0.04);
+  --shadow-glass: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
+}
+
+/* High Contrast Overrides */
+.high-contrast {
+  --surface: 0 0% 0%;
+  --surface-low: 0 0% 10%;
+  --surface-lowest: 0 0% 5%;
+  --surface-bright: 0 0% 15%;
+  
+  --on-surface: 0 0% 100%;
+  --primary: 0 0% 100%;
+  --on-primary: 0 0% 0%;
+  
+  --shadow-ambient: none;
+}

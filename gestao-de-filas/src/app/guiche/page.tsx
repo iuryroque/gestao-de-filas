@@ -3,6 +3,11 @@ import React, { useCallback, useEffect, useRef, useState } from "react"
 import { api } from "~/trpc/react"
 import { useTheme } from "../_components/ThemeContext"
 import { ThemeToggle } from "../_components/ThemeToggle"
+import { Sidebar } from "../_components/layout/Sidebar"
+import { Header } from "../_components/layout/Header"
+import { CallingCard } from "../_components/guiche/CallingCard"
+import { StatsOverview } from "../_components/guiche/StatsOverview"
+import { NextTicketsList } from "../_components/guiche/NextTicketsList"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -296,283 +301,38 @@ export default function GuichePage() {
   // ══════════════════════════════════════════════════════════════════════════
   const isPaused        = desk?.status === "paused"
   const hasOpenTicket   = !!currentTicket && ["calling", "awaiting_recall"].includes(currentTicket.status)
-  const isAwaitingRecall = currentTicket?.status === "awaiting_recall"
-  const canDeclareDefinitive = (currentTicket?.noShowCount ?? 0) >= MAX_NO_SHOW - 1
 
   return (
-    <main className={`min-h-screen p-4 transition-colors ${highContrast ? "bg-black" : "bg-gray-100"}`}>
-      <div className="max-w-2xl mx-auto">
+    <div className={`min-h-screen flex transition-colors ${highContrast ? "bg-black" : "bg-surface"}`}>
+      <Sidebar />
+      
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <Header deskName={desk?.name} status={desk?.status} />
+        
+        <div className="flex-1 flex overflow-hidden">
+          {/* Main Content Area */}
+          <main className="flex-1 p-8 overflow-y-auto space-y-12">
+             <div className="flex justify-center">
+                <CallingCard 
+                  ticketCode={hasOpenTicket ? currentTicket!.code : null}
+                  service={currentTicket?.service ?? undefined}
+                  onCallNext={handleCallNext}
+                  onRecall={handleRecall}
+                  onTransfer={() => setShowTransferModal(true)}
+                  onFinish={handleFinish}
+                  isPending={callNextMut.isPending}
+                />
+             </div>
 
-        {/* ── Header ────────────────────────────────────────────────────── */}
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h1 className={`text-xl font-bold ${highContrast ? "text-white" : "text-gray-800"}`}>{desk?.name}</h1>
-            <span className={`text-sm font-medium ${isPaused ? "text-yellow-600" : highContrast ? "text-green-400" : "text-green-600"}`}>
-              {isPaused ? `● Em pausa — ${desk?.pauseReason ?? ""}` : "● Ativo"}
-            </span>
-          </div>
-          <div className="flex gap-4 items-center">
-            <ThemeToggle />
-            <div className="flex gap-2">
-              {!isPaused ? (
-                <button
-                  onClick={() => { setPauseReason(""); setShowPauseModal(true) }}
-                  className="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded-xl transition-colors text-sm"
-                >
-                  Pausar
-                </button>
-              ) : (
-                <button
-                  onClick={handleResume}
-                  className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-xl transition-colors text-sm"
-                >
-                  Retomar
-                </button>
-              )}
-            </div>
-            <button
-              onClick={() => { setStep("select_desk"); setDesk(null) }}
-              className={`px-3 py-1.5 text-sm transition-colors ${highContrast ? "text-gray-400 hover:text-white" : "text-gray-500 hover:text-gray-700"}`}
-            >
-              Sair
-            </button>
-          </div>
+             <StatsOverview />
+          </main>
+
+          {/* Right Panel */}
+          <NextTicketsList />
         </div>
-
-        {/* ── Timeout warning banner (US-04) ──────────────────────────── */}
-        {timeoutWarning && hasOpenTicket && (
-          <div className="mb-4 rounded-2xl px-5 py-4 bg-orange-500/10 border-2 border-orange-400 flex items-start gap-3 animate-pulse">
-            <span className="text-2xl mt-0.5" aria-hidden="true">⏱️</span>
-            <div>
-              <p className="font-bold text-orange-600 text-sm">Atendimento demorado detectado</p>
-              <p className="text-orange-500 text-xs mt-0.5">Este atendimento está em andamento há mais tempo que o esperado. Não se esqueça de registrar a conclusão.</p>
-            </div>
-          </div>
-        )}
-
-        {/* ── Current ticket card ───────────────────────────────────────── */}
-        <div className={`rounded-3xl shadow-xl overflow-hidden mb-6 transition-colors border-2 p-8 ${
-          highContrast ? "bg-gray-900 border-white" : "bg-white border-transparent"
-        }`}>
-          {hasOpenTicket && currentTicket ? (
-            <>
-              {/* Ticket info */}
-              <div className="mb-8">
-                <div className="flex items-center gap-3 mb-2 flex-wrap">
-                  <span className={`text-6xl font-black ${highContrast ? "text-white" : "text-blue-700"}`}>{currentTicket.code}</span>
-                  {currentTicket.isPriority && (
-                    <span className="bg-amber-100 text-amber-700 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">
-                      PRIORIDADE
-                    </span>
-                  )}
-                  {isAwaitingRecall && (
-                    <span className="bg-orange-100 text-orange-700 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">
-                      AGUARDANDO RECONVOCAÇÃO
-                    </span>
-                  )}
-                </div>
-                <p className={`text-2xl font-medium ${highContrast ? "text-gray-300" : "text-gray-600"}`}>{currentTicket.service ?? "Atendimento Geral"}</p>
-                <p className={`text-sm mt-2 ${highContrast ? "text-gray-500" : "text-gray-400"}`}>
-                  Cidadão aguardou {waitTimeLabel(currentTicket.createdAt)}
-                  {currentTicket.noShowCount > 0 && ` · ${currentTicket.noShowCount}ª chamada`}
-                </p>
-              </div>
-
-              {/* Action buttons */}
-              <div className="grid grid-cols-2 gap-4">
-                <button
-                  onClick={() => void handleFinish()}
-                  disabled={finishMut.isPending}
-                  className={`py-6 text-white font-bold rounded-2xl text-xl transition-all shadow-md disabled:opacity-50 ${
-                    highContrast ? "bg-green-700 border-2 border-white hover:bg-green-600" : "bg-green-600 hover:bg-green-700"
-                  }`}
-                >
-                  ✓ Finalizar
-                </button>
-
-                {isAwaitingRecall ? (
-                  <button
-                    onClick={() => void handleRecall()}
-                    disabled={recallMut.isPending}
-                    className={`py-6 text-white font-bold rounded-2xl text-xl transition-all shadow-md disabled:opacity-50 ${
-                      highContrast ? "bg-blue-700 border-2 border-white hover:bg-blue-600" : "bg-blue-600 hover:bg-blue-700"
-                    }`}
-                  >
-                    📢 Reconvocar
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => void handleNoShow()}
-                    disabled={noShowMut.isPending}
-                    className={`py-6 text-white font-bold rounded-2xl text-xl transition-all shadow-md disabled:opacity-50 ${
-                      highContrast ? "bg-orange-700 border-2 border-white hover:bg-orange-600" : "bg-orange-500 hover:bg-orange-600"
-                    }`}
-                  >
-                    ✗ Não Compareceu
-                  </button>
-                )}
-
-                {/* Definitive no-show */}
-                {isAwaitingRecall && canDeclareDefinitive && (
-                  <button
-                    onClick={() => void handleNoShow()}
-                    disabled={noShowMut.isPending}
-                    className={`col-span-2 py-4 font-bold rounded-2xl transition-all ${
-                      highContrast 
-                        ? "bg-red-950 text-red-300 border-2 border-red-800 hover:bg-red-900" 
-                        : "bg-red-50 text-red-700 hover:bg-red-100"
-                    }`}
-                  >
-                    Declarar Não Comparecimento Definitivo
-                  </button>
-                )}
-
-                {/* Transfer button (US-06) */}
-                <button
-                  onClick={() => { setShowTransferModal(true); setSelectedQueueId(null); setTransferError(null) }}
-                  className={`col-span-2 py-4 font-bold rounded-2xl transition-all text-sm ${
-                    highContrast
-                      ? "bg-purple-950 text-purple-300 border-2 border-purple-700 hover:bg-purple-900"
-                      : "bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200"
-                  }`}
-                >
-                  ↗ Transferir para outra fila
-                </button>
-              </div>
-            </>
-          ) : (
-            <div className="text-center py-12">
-              <p className={`text-xl mb-10 ${highContrast ? "text-gray-400" : "text-gray-400"}`}>Nenhuma senha em atendimento</p>
-              <button
-                onClick={() => void handleCallNext()}
-                disabled={isPaused || callNextMut.isPending}
-                className={`px-12 py-6 text-2xl font-bold rounded-3xl transition-all shadow-xl disabled:opacity-50 ${
-                  highContrast 
-                    ? "bg-white text-black hover:bg-gray-200" 
-                    : "bg-blue-600 text-white hover:bg-blue-700"
-                }`}
-              >
-                {callNextMut.isPending ? "Chamando…" : "Chamar Próximo"}
-              </button>
-              {callError && (
-                <p className="text-red-500 text-sm mt-6 max-w-sm mx-auto font-medium">{callError}</p>
-              )}
-              {isPaused && (
-                <p className="text-yellow-600 text-md mt-6 font-medium">Retome o guichê para chamar o próximo.</p>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* ── Queue status panel (US-07) ───────────────────────────────────────── */}
-        {queuePanel ? (
-          <div className={`rounded-3xl p-5 transition-colors ${
-            queuePanel.slaStatus === "critical"
-              ? (highContrast ? "bg-red-950 border-2 border-red-500" : "bg-red-50 border border-red-300")
-              : queuePanel.slaStatus === "warning"
-              ? (highContrast ? "bg-yellow-950 border-2 border-yellow-500" : "bg-yellow-50 border border-yellow-300")
-              : (highContrast ? "bg-gray-900 border-2 border-gray-800" : "bg-white shadow-sm")
-          }`}>
-            <div className="flex items-center justify-between mb-3">
-              <h2 className={`text-xs font-bold uppercase tracking-widest ${
-                highContrast ? "text-gray-500" : "text-gray-400"
-              }`}>Fila: {queuePanel.queueName}</h2>
-              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
-                queuePanel.slaStatus === "critical"
-                  ? "bg-red-500 text-white"
-                  : queuePanel.slaStatus === "warning"
-                  ? "bg-yellow-500 text-white"
-                  : "bg-green-500 text-white"
-              }`}>
-                {queuePanel.slaStatus === "critical" ? "🔴 SLA Crítico"
-                  : queuePanel.slaStatus === "warning" ? "🟡 Em Alerta"
-                  : "🟢 SLA OK"}
-              </span>
-            </div>
-            <div className="grid grid-cols-3 gap-3 text-center">
-              <div>
-                <p className={`text-2xl font-bold ${
-                  queuePanel.waitingCount === 0
-                    ? (highContrast ? "text-gray-500" : "text-gray-400")
-                    : (highContrast ? "text-white" : "text-gray-800")
-                }`}>{queuePanel.waitingCount}</p>
-                <p className={`text-xs ${
-                  highContrast ? "text-gray-500" : "text-gray-400"
-                }`}>Aguardando</p>
-              </div>
-              <div>
-                <p className={`text-2xl font-bold ${highContrast ? "text-yellow-400" : "text-yellow-600"}`}>
-                  {queuePanel.priorityCount}
-                </p>
-                <p className={`text-xs ${highContrast ? "text-gray-500" : "text-gray-400"}`}>Prioritários</p>
-              </div>
-              <div>
-                <p className={`text-2xl font-bold ${highContrast ? "text-white" : "text-gray-800"}`}>
-                  {queuePanel.waitingCount === 0 ? "—" : `~${queuePanel.estimatedWaitMinutes} min`}
-                </p>
-                <p className={`text-xs ${highContrast ? "text-gray-500" : "text-gray-400"}`}>Estimativa</p>
-              </div>
-            </div>
-            {queuePanel.waitingCount === 0 && (
-              <p className={`text-center text-sm font-medium mt-3 ${
-                highContrast ? "text-gray-600" : "text-gray-400"
-              }`}>Fila vazia</p>
-            )}
-          </div>
-        ) : desk && (
-          <div className={`rounded-3xl p-4 text-center ${
-            highContrast ? "bg-gray-900 border border-gray-800" : "bg-white shadow-sm"
-          }`}>
-            <p className={`text-sm ${highContrast ? "text-gray-600" : "text-gray-400"}`}>
-              Fila vazia
-            </p>
-          </div>
-        )}
-
-        {recentTickets && recentTickets.length > 0 && (
-          <div className={`rounded-3xl p-6 transition-colors ${highContrast ? "bg-gray-900 border-2 border-gray-800" : "bg-white shadow-lg"}`}>
-            <h2 className={`text-xs font-bold uppercase tracking-widest mb-4 ${highContrast ? "text-gray-500" : "text-gray-400"}`}>
-              Atendimentos recentes
-            </h2>
-            <div className="space-y-3">
-              {recentTickets.map((t) => (
-                <div key={t.id} className={`flex items-center justify-between p-4 rounded-2xl border transition-colors ${
-                  highContrast ? "bg-black border-gray-800" : "bg-gray-50 border-gray-100"
-                }`}>
-                  <div className="flex items-center gap-3">
-                    <span className={`font-bold text-lg ${highContrast ? "text-gray-200" : "text-gray-700"}`}>{t.code}</span>
-                    <span className={`text-xs ${highContrast ? "text-gray-400" : "text-gray-500"}`}>{t.service ?? "Geral"}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                      t.status === "done"
-                        ? "bg-green-100 text-green-700"
-                        : "bg-red-100 text-red-700"
-                    }`}>
-                      {t.status === "done" ? "Finalizado" : "No-Show"}
-                    </span>
-                    {/* Reintegrate button — supervisor only (US-05 CA 4) */}
-                    {t.status === "no_show" && DEMO_ROLE === "supervisor" && (
-                      <button
-                        onClick={() => { setReintegrateId(t.id); setReintegrateNote("") }}
-                        className={`text-xs font-bold px-2 py-1 rounded-lg transition-all ${
-                          highContrast
-                            ? "bg-blue-900 text-blue-300 hover:bg-blue-800"
-                            : "bg-blue-50 text-blue-600 hover:bg-blue-100"
-                        }`}
-                      >
-                        ↩ Reintegrar
-                      </button>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
 
-      {/* ── Pause modal ───────────────────────────────────────────────────── */}
+      {/* ── Modals (Maintained functionality) ────────────────────────────── */}
       {showPauseModal && (
         <div
           className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50 animate-in fade-in duration-200"
@@ -618,7 +378,6 @@ export default function GuichePage() {
         </div>
       )}
 
-      {/* ── Reintegrate modal (US-05 CA 4 — Supervisor only) ──────────────── */}
       {reintegrateId && (
         <div
           className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50"
@@ -663,7 +422,6 @@ export default function GuichePage() {
         </div>
       )}
 
-      {/* ── Transfer modal (US-06) ─────────────────────────────────────────── */}
       {showTransferModal && currentTicket && (
         <div
           className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50"
@@ -677,7 +435,6 @@ export default function GuichePage() {
               Selecione a fila de destino. O cidadão será posicionado conforme o horário original da senha.
             </p>
 
-            {/* Queue list */}
             <div className="space-y-2 mb-6 max-h-48 overflow-y-auto">
               {allQueues?.filter(q => q.id !== currentTicket.queueId).map((q) => (
                 <button
@@ -692,51 +449,8 @@ export default function GuichePage() {
                   {q.name}
                 </button>
               ))}
-              {allQueues && allQueues.filter(q => q.id !== currentTicket.queueId).length === 0 && (
-                <p className={`text-center py-4 text-sm ${highContrast ? "text-gray-500" : "text-gray-400"}`}>
-                  Não há outras filas disponíveis.
-                </p>
-              )}
             </div>
 
-            {/* Queue info (when selected) */}
-            {selectedQueueId && targetQueueInfo && (
-              <div className={`rounded-xl p-4 mb-6 text-sm space-y-1 ${highContrast ? "bg-black border border-gray-800" : "bg-gray-50 border border-gray-100"}`}>
-                <div className="flex justify-between">
-                  <span className={highContrast ? "text-gray-400" : "text-gray-500"}>Aguardando:</span>
-                  <span className={`font-bold ${highContrast ? "text-white" : "text-gray-700"}`}>{targetQueueInfo.waitingCount} pessoas</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className={highContrast ? "text-gray-400" : "text-gray-500"}>Tempo estimado:</span>
-                  <span className={`font-bold ${highContrast ? "text-white" : "text-gray-700"}`}>{targetQueueInfo.estimatedWaitMinutes} min</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className={highContrast ? "text-gray-400" : "text-gray-500"}>Guichês ativos:</span>
-                  <span className={`font-bold ${highContrast ? "text-white" : "text-gray-700"}`}>{targetQueueInfo.activeDesks}</span>
-                </div>
-
-                {/* Long wait warning (CA 2 — US-06) */}
-                {targetQueueInfo.estimatedWaitMinutes > 60 && (
-                  <div className="mt-3 rounded-lg bg-orange-500/10 border border-orange-400 px-3 py-2 text-xs text-orange-600 font-medium">
-                    ⚠️ A fila <strong>{targetQueueInfo.queueName}</strong> possui {targetQueueInfo.waitingCount} pessoas na espera. Estimativa: {targetQueueInfo.estimatedWaitMinutes} min.
-                  </div>
-                )}
-
-                {/* No active desks warning (CA 5 — US-06) */}
-                {targetQueueInfo.activeDesks === 0 && (
-                  <div className="mt-3 rounded-lg bg-red-500/10 border border-red-400 px-3 py-2 text-xs text-red-600 font-medium">
-                    🚫 A fila <strong>{targetQueueInfo.queueName}</strong> não possui atendentes ativos agora. O ticket ficará aguardando até que um guichê seja ativado.
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Error message */}
-            {transferError && (
-              <p className="text-red-500 text-sm mb-4 font-medium">{transferError}</p>
-            )}
-
-            {/* Action buttons */}
             <div className="flex gap-4">
               <button
                 onClick={() => { setShowTransferModal(false); setSelectedQueueId(null) }}
@@ -760,22 +474,14 @@ export default function GuichePage() {
         </div>
       )}
 
-      {/* ── CSAT Prompt modal (US-11) ──────────────────────────────────────── */}
       {csatPrompt && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
           <div className={`rounded-3xl p-8 w-full max-w-sm shadow-2xl text-center ${highContrast ? "bg-gray-900 border-2 border-green-400" : "bg-white"}`}>
-            <div className="text-5xl mb-3">⭐</div>
             <h2 className={`text-xl font-bold mb-2 ${highContrast ? "text-white" : "text-gray-800"}`}>
               Avaliação de Atendimento
             </h2>
             <p className={`text-sm mb-4 ${highContrast ? "text-gray-300" : "text-gray-500"}`}>
-              Ticket <strong>{csatPrompt.code}</strong> finalizado. Direcione o cidadão ao link ou QR Code abaixo para avaliar o atendimento.
-            </p>
-            <div className={`rounded-xl p-4 mb-5 font-mono text-sm break-all select-all ${highContrast ? "bg-black text-green-400 border border-green-700" : "bg-gray-50 text-blue-700 border border-gray-200"}`}>
-              {`/csat/${csatPrompt.ticketId}`}
-            </div>
-            <p className={`text-xs mb-5 ${highContrast ? "text-gray-500" : "text-gray-400"}`}>
-              A avaliação é opcional e pode ser pulada pelo cidadão em 30 segundos.
+              Ticket <strong>{csatPrompt.code}</strong> finalizado.
             </p>
             <button
               onClick={() => setCsatPrompt(null)}
@@ -788,6 +494,6 @@ export default function GuichePage() {
           </div>
         </div>
       )}
-    </main>
+    </div>
   )
 }
