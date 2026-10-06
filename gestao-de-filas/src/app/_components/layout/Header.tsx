@@ -4,7 +4,7 @@ import { useTheme } from "../ThemeContext";
 import { ThemeToggle } from "../ThemeToggle";
 import { useSession } from "next-auth/react";
 
-export function Header({ deskName, status }: { deskName?: string; status?: string }) {
+export function Header({ deskName, status, hideSearch = false }: { deskName?: string; status?: string; hideSearch?: boolean }) {
   const { highContrast, sidebarCollapsed, toggleSidebar } = useTheme();
   const { data: session } = useSession();
 
@@ -48,10 +48,14 @@ export function Header({ deskName, status }: { deskName?: string; status?: strin
           </div>
         </div>
 
-        {!highContrast && (
-          <div className="hidden xl:flex items-center gap-3 bg-surface-low px-4 py-2.5 rounded-xl min-w-[300px]">
-            <Search className="w-4 h-4 text-secondary/40" />
-            <span className="text-xs text-secondary/40 font-body">Procurar ticket ou cidadão...</span>
+        {!highContrast && !hideSearch && (
+          <div className="hidden xl:flex items-center gap-3 bg-surface-low px-5 py-3 rounded-2xl min-w-[320px] transition-all focus-within:ring-2 focus-within:ring-primary/5">
+            <Search className="w-4 h-4 text-secondary/30" />
+            <input 
+              type="text" 
+              placeholder="Procurar ticket ou cidadão..."
+              className="bg-transparent text-xs text-primary placeholder:text-secondary/30 font-body outline-none w-full"
+            />
           </div>
         )}
       </div>
